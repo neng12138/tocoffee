@@ -24,6 +24,15 @@ D1–D3 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张
 | API | NestJS + Prisma + PostgreSQL 16 |
 | 运行 | Docker Compose，PostgreSQL 主机端口 **5433**，与 OneSoon 隔离 |
 
+## 品牌资源
+
+- 完整 logo（透明底）：`apps/admin/public/brand/logo.png`；顾客端副本在 `apps/passenger/src/static/logo.png`
+- 方形图标：`apps/admin/public/brand/logo-square.png`
+- 杯形小标（favicon）：`apps/admin/public/brand/logo-mark.png`
+- 原始图片：`docs/assets/brand/tocoffee-logo.jpg`
+
+管理端侧边栏、登录页与顾客端首页均已接入；小程序端使用顾客端 `static/logo.png`。
+
 ## 本地开发
 
 ### 0. 环境要求

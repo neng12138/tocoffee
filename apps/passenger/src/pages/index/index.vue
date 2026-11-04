@@ -2,8 +2,7 @@
   <view class="page">
     <view class="hero">
       <view class="brand-row">
-        <view class="brand-mark">TC</view>
-        <text class="brand-name">ToCoffee</text>
+        <image class="brand-logo" src="/static/logo.png" mode="widthFix" />
       </view>
 
       <text class="eyebrow">P0 · 单店自提</text>
@@ -21,7 +20,7 @@
         </view>
         <view class="status-row">
           <text class="status-label">当前阶段</text>
-          <text class="status-value accent">Day 1 脚手架</text>
+          <text class="status-value accent">Day 3 · 菜单接入准备</text>
         </view>
       </view>
 
@@ -55,24 +54,10 @@
   margin-bottom: 48rpx;
 }
 
-.brand-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
-  margin-right: 20rpx;
-  color: #ffffff;
-  font-size: 28rpx;
-  font-weight: 700;
-  background: #6f4e37;
-  border-radius: 20rpx;
-}
-
-.brand-name {
-  color: #2b2118;
-  font-size: 36rpx;
-  font-weight: 700;
+.brand-logo {
+  display: block;
+  width: 320rpx;
+  height: auto;
 }
 
 .eyebrow {

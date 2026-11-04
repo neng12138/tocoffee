@@ -7,9 +7,8 @@ const route = useRoute()
 <template>
   <div class="app-shell">
     <aside class="app-sidebar">
-      <div class="brand">
-        <span class="brand-mark">TC</span>
-        <span class="brand-name">ToCoffee</span>
+      <div class="brand sidebar-brand">
+        <img src="/brand/logo.png" alt="ToCoffee" class="brand-logo" />
       </div>
 
       <nav class="app-nav" aria-label="管理端导航">
@@ -18,7 +17,7 @@ const route = useRoute()
 
       <div class="sidebar-foot">
         <span>P0 · 单店自提</span>
-        <span>Day 1 脚手架</span>
+        <span>Day 3 · API 已就绪</span>
       </div>
     </aside>
 
@@ -34,3 +33,17 @@ const route = useRoute()
     </main>
   </div>
 </template>
+
+<style scoped>
+.sidebar-brand {
+  padding: 10px 12px;
+  background: var(--tc-bg);
+  border-radius: 10px;
+}
+
+.brand-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+</style>

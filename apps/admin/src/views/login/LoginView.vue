@@ -2,8 +2,7 @@
   <div class="login-shell">
     <el-card shadow="never" class="login-card">
       <div class="brand">
-        <span class="brand-mark">TC</span>
-        <span class="brand-name">ToCoffee</span>
+        <img src="/brand/logo.png" alt="ToCoffee" class="brand-logo" />
       </div>
       <h1>管理端登录</h1>
       <p class="muted">登录表单在 Day 5 接入，演示账号 owner / admin123。</p>
@@ -30,8 +29,14 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
   margin-bottom: 24px;
+}
+
+.brand-logo {
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
 }
 
 h1 {
