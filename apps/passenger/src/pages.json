@@ -1,0 +1,16 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "ToCoffee"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "ToCoffee",
+    "navigationBarBackgroundColor": "#F5F1EA",
+    "backgroundColor": "#F5F1EA"
+  }
+}

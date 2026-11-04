@@ -1,0 +1,34 @@
+name: tocoffee
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: tocoffee-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tocoffee}
+      POSTGRES_USER: ${POSTGRES_USER:-tocoffee}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tocoffee}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - tocoffee_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-tocoffee} -d ${POSTGRES_DB:-tocoffee}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks:
+      - tocoffee_default
+
+volumes:
+  tocoffee_pgdata:
+    name: tocoffee_pgdata
+
+networks:
+  tocoffee_default:
+    name: tocoffee_default

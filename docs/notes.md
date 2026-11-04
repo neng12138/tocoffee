@@ -20,3 +20,10 @@
 - 微信开发者工具：已安装 `2.02.2609240`（`D:\微信开发者工具\微信web开发者工具`），已登录；CLI 服务端口已开启，IDE 监听 `127.0.0.1:16928`，`cli islogin` 返回 `{"login":true}`。调用 CLI 时不要带 `--port 9420`（IDE 已固定在 16928，带 9420 会要求重启）。
 - AppID：当前未配置（OneSoon 的 `mp-weixin.appid` 也是空）；D1 先用测试号/游客模式，P0 mock 支付不依赖真实 AppID。
 - 版本坑：npm 上 `prisma` 的 `latest` 当前是 `8.0.0-rc.30`，已锁定 `prisma@6.19.3` + `@prisma/client@6.19.3`。
+
+## 2026-11-04 D1 实施
+
+- 管理端脚手架实际版本：Vue 3.5.44 / Vite 8.3.5 / TS 6.0.3（`create-vite` 当前模板）；顾客端官方模板：Vue 3.4.21 / Vite 5.2.8 / TS 4.9.4。两端版本不一致是有意的：顾客端跟随 uni-app 编译器，未强行升级。
+- H5 dev 初始只监听 `::1`，`http://127.0.0.1:5174` 会拒绝连接；已在 `apps/passenger/vite.config.ts` 与 `apps/admin/vite.config.ts` 固定 `host: '127.0.0.1'`。
+- 微信开发者工具 2.02.2609240 的 CLI `open --project` 不接受 `touristappid`，报 `不存在此 AppID (code 10)`；构建产物本身正常。首次导入需在 IDE 里选「测试号」，或在 `apps/passenger/src/manifest.json` 填入可用 AppID 后重新执行 `npm run dev:mp-weixin`。
+- 已加 `scripts/dev/check.ps1`，串起容器健康、API 构建/测试、管理端构建、顾客端类型检查、`git diff --check`。

@@ -13,7 +13,14 @@ coverage/
 
 # 本地运行产物
 uploads/
+apps/*/uploads/
 *.log
+*.tsbuildinfo
+.vite/
+
+# uni-app / HBuilderX 本地缓存
+unpackage/
+.hbuilderx/
 
 # 编辑器与系统文件
 .DS_Store

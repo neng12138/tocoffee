@@ -1,0 +1,11 @@
+// ToCoffee 数据模型唯一来源。
+// Day 1 只建立连接与 generate；15 张业务表在 Day 2 加入。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

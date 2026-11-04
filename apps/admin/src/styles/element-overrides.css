@@ -1,0 +1,11 @@
+.el-card {
+  --el-card-border-color: var(--tc-border);
+  --el-card-bg-color: var(--tc-surface);
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--tc-primary);
+  --el-button-border-color: var(--tc-primary);
+  --el-button-hover-bg-color: #5c3f2c;
+  --el-button-hover-border-color: #5c3f2c;
+}

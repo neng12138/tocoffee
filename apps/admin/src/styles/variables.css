@@ -1,0 +1,13 @@
+:root {
+  --tc-bg: #f5f1ea;
+  --tc-surface: #fffdf9;
+  --tc-text: #2b2118;
+  --tc-muted: #7a6a5d;
+  --tc-border: #e6dccf;
+  --tc-primary: #6f4e37;
+  --tc-primary-soft: #efe4d8;
+  --tc-accent: #c08a5a;
+  --el-color-primary: #6f4e37;
+  --el-border-radius-base: 8px;
+  --el-font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
