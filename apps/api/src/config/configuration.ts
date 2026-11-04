@@ -21,7 +21,7 @@ export default (): AppConfiguration => ({
     customerSecret: process.env.JWT_CUSTOMER_SECRET ?? '',
     staffSecret: process.env.JWT_STAFF_SECRET ?? '',
     customerExpiresIn: process.env.JWT_CUSTOMER_EXPIRES_IN ?? '7d',
-    staffExpiresIn: process.env.JWT_STAFF_EXPIRES_IN ?? '12h',
+    staffExpiresIn: process.env.JWT_STAFF_EXPIRES_IN ?? '24h',
   },
   authDevMode: process.env.AUTH_DEV_MODE === 'true',
   paymentMode: process.env.PAYMENT_MODE ?? 'mock',

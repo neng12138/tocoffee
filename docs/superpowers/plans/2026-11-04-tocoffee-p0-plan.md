@@ -117,7 +117,7 @@ apps/api/src/
 
 - 全局 `ValidationPipe({ whitelist: true, transform: true })`。
 - 错误统一 `{ code, message, details? }`；`AppError` 带 HTTP 状态与稳定 code。
-- JWT：顾客 7 天 / 员工 12 小时，不同 secret 与 audience。
+- JWT：顾客 7 天 / 员工 24 小时，不同 secret 与 audience。
 - 顾客登录：
   - `POST /api/auth/code`：手机号 → 生成 6 位码，5 分钟有效；`AUTH_DEV_MODE=true` 时响应带 `devCode`，不接短信。
   - `POST /api/auth/login`：手机号 + 验证码 → upsert member → 返回 `{ token, member }`。

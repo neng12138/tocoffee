@@ -84,7 +84,7 @@ npm run start:dev
 | GET | `/api/admin/auth/me` | 当前员工 | Bearer 员工 token |
 | POST | `/api/admin/auth/change-password` | 修改当前员工密码 | Bearer 员工 token |
 
-本地 `.env` 的 `AUTH_DEV_MODE=true` 时，`POST /api/auth/code` 会在响应里返回 `devCode`，用于 mock 短信登录；生产必须关闭。顾客 token 默认 7 天，员工 token 默认 12 小时，两者使用不同 secret 与 audience，不能互用。
+本地 `.env` 的 `AUTH_DEV_MODE=true` 时，`POST /api/auth/code` 会在响应里返回 `devCode`，用于 mock 短信登录；生产必须关闭。顾客 token 默认 7 天，员工 token 默认 24 小时，两者使用不同 secret 与 audience，不能互用。
 
 ### 2.2 D5 管理端接口
 

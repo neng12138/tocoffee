@@ -691,7 +691,7 @@ apps/api/src/
 
 ### 12.4 鉴权与安全
 
-- 顾客 JWT：7 天；员工 JWT：12 小时；不同 secret/audience。
+- 顾客 JWT：7 天；员工 JWT：24 小时；不同 secret/audience。
 - 密码：bcrypt（cost 10+）；登录失败限流（同 IP/账号 5 次/分钟）。
 - 管理端 RBAC：`OWNER` 全量；`STAFF` 仅订单/沽清（P1 细化）。
 - 输入：class-validator + whitelist；禁止未知字段。
