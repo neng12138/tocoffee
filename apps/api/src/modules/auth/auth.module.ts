@@ -11,6 +11,12 @@ import { AuthService } from './services/auth.service.js';
   imports: [JwtModule.register({})],
   controllers: [AuthController, AdminAuthController],
   providers: [AuthService, RateLimitService, CustomerJwtGuard, StaffJwtGuard],
-  exports: [AuthService, RateLimitService, CustomerJwtGuard, StaffJwtGuard],
+  exports: [
+    JwtModule,
+    AuthService,
+    RateLimitService,
+    CustomerJwtGuard,
+    StaffJwtGuard,
+  ],
 })
 export class AuthModule {}

@@ -111,6 +111,52 @@ a {
   padding: 28px;
 }
 
+.page-card {
+  border-radius: 12px;
+}
+
+.page-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.page-card-header h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.page-card-header p {
+  margin: 0;
+}
+
+.muted {
+  color: var(--tc-muted);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.toolbar-search {
+  width: 240px;
+}
+
+@media (max-width: 760px) {
+  .page-card-header {
+    flex-direction: column;
+  }
+
+  .toolbar-search {
+    width: 100%;
+  }
+}
+
 @media (max-width: 760px) {
   .app-shell {
     grid-template-columns: 1fr;

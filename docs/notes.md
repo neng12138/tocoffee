@@ -61,3 +61,17 @@
 - Chrome headless 有最小视口 512px，直接 `--window-size=390` 截图会被裁；用 CDP `Emulation.setDeviceMetricsOverride` 设 390×844 后页面正常，确认不是布局 bug。
 - H5 验收：390×844 下首页、菜单、规格弹层、购物车渲染正常；点击加购后购物车出现，刷新后能从 storage 恢复；控制台 0 error。
 - D4 的「去结算」是占位，D8 接订单/支付后才可用。
+
+## 2026-11-04 D5 管理端
+
+- 管理端 API 全部按 `staff.storeId` 隔离，不能只靠前端过滤；分类/商品/规格/上传都从 `CurrentStaff` 取门店。
+- 分类删除是归档为 `DISABLED`，商品删除是归档为 `OFF_SHELF`，保留历史订单引用；顾客端菜单只返回启用分类与在售/售罄商品。
+- 规格组删除保护：被任一商品引用时返回 409；选项删除/停用保护：组内最后一个可用选项不允许，避免商品没有可选规格。
+- 默认选项切换在同一事务内清除同组其他默认，保证每组最多一个 `isDefault=true`。
+- 管理端价格表单用元，提交前 `yuanToCents`；API 始终收整数分，避免前端浮点。
+- 商品图上传返回绝对 URL（`PUBLIC_BASE_URL + /uploads/...`），与 seed 一致；本地是 `http://127.0.0.1:3000`，生产必须换成 HTTPS 域名。
+- **`.gitignore` 坑**：原规则 `uploads/` 是宽匹配，会把 `apps/api/src/modules/uploads/` 源码一起忽略，`git status` 看不到；已改为 `apps/*/uploads/`。新增同名业务目录时要检查 `git check-ignore -v`。
+- 管理端 Element Plus 表格 slot 的 `row` 被推断为 `DefaultRow`，模板里需 `asCategory(row)`/`asProduct(row)`/`asOption(row)` 收窄；动态状态映射用 `statusOf(row)`，不要直接 `statusMeta[row.status]`。
+- `el-switch @change` 参数类型是 `string | number | boolean`，回调参数不能只写 boolean。
+- 管理端主 chunk 869.65 kB 是 Element Plus 全量引入；P0 接受，D14 再评估按需引入。
+- 上传只落本地磁盘 `apps/api/uploads/products/YYYY/MM/`，`uploads/` 不进 git；换机器/清目录会丢用户上传图，P1 换对象存储。

@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-D1–D4 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API，以及顾客端首页、菜单、规格弹层和购物车。
+D1–D5 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车，以及管理端登录、分类/商品/规格 CRUD 和图片上传。
 小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
@@ -86,6 +86,25 @@ npm run start:dev
 
 本地 `.env` 的 `AUTH_DEV_MODE=true` 时，`POST /api/auth/code` 会在响应里返回 `devCode`，用于 mock 短信登录；生产必须关闭。顾客 token 默认 7 天，员工 token 默认 12 小时，两者使用不同 secret 与 audience，不能互用。
 
+### 2.2 D5 管理端接口
+
+全部需要员工 Bearer token；数据按当前员工的 `storeId` 隔离。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET / POST | `/api/admin/categories` | 分类列表 / 新建 |
+| PATCH / DELETE | `/api/admin/categories/:id` | 修改 / 归档 |
+| GET / POST | `/api/admin/products` | 商品列表（支持分类、状态、关键词）/ 新建 |
+| GET / PATCH / DELETE | `/api/admin/products/:id` | 详情 / 修改 / 归档 |
+| PATCH | `/api/admin/products/:id/status` | 上架、沽清、下架 |
+| GET / POST | `/api/admin/spec-groups` | 规格组列表 / 新建 |
+| PATCH / DELETE | `/api/admin/spec-groups/:id` | 修改 / 删除（被商品引用时 409） |
+| POST | `/api/admin/spec-groups/:id/options` | 给规格组新增选项 |
+| PATCH / DELETE | `/api/admin/spec-options/:id` | 修改 / 删除选项 |
+| POST | `/api/admin/uploads` | 上传商品图，jpg/png/webp，≤2MB |
+
+归档不会物理删除：分类变 `DISABLED`，商品变 `OFF_SHELF`；顾客端只展示启用分类与在售/售罄商品。
+
 ### 3. 启动管理端
 
 ```powershell
@@ -94,7 +113,7 @@ npm install
 npm run dev
 ```
 
-打开 <http://127.0.0.1:5173/>。D3 管理端 UI 仍是占位页，登录页与门店/菜单管理在 D5 接入；API 已提供员工登录接口，演示账号 `owner / admin123`。
+打开 <http://127.0.0.1:5173/>。D5 已接入员工登录、token 持久化、401 跳转，以及分类、商品、规格和图片上传；演示账号 `owner / admin123`。
 
 ### 4. 启动顾客端
 
@@ -124,6 +143,14 @@ npm run dev:mp-weixin
 - 规格：底部弹层按规格组渲染，支持默认项、必选/多选、上下限、价格实时计算、数量 1–20。
 - 购物车：Pinia + `uni.setStorageSync`，同商品同规格合并，支持改数量、删除、清空、合计；「去结算」当前为 D8 前的占位按钮。
 - 商品图由 API 的 `/uploads` 静态目录提供；H5 走 Vite `/api` 代理，小程序开发期直连 `http://127.0.0.1:3000/api`。
+
+#### D5 已实现
+
+- 登录：员工账号密码登录，token 存 `localStorage`，路由守卫拦截未登录访问，401 自动清理并跳回登录页。
+- 分类管理：列表、商品数、状态、新建/编辑、归档；归档后顾客端不再展示。
+- 商品管理：搜索与分类/状态筛选，新建/编辑，价格元转分，图片上传/移除，标签、描述、规格组多选，上架/沽清/下架。
+- 规格管理：规格组与选项的增删改、默认项切换、可用开关、必选/多选与选择数上下限；被商品引用的规格组禁止删除。
+- 图片上传：`POST /api/admin/uploads`，本地保存到 `apps/api/uploads/products/YYYY/MM/`，返回绝对 URL；仅 jpg/png/webp、≤2MB。
 
 ### 5. 一键检查
 

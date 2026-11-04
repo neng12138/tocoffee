@@ -12,7 +12,6 @@ build/
 coverage/
 
 # 本地运行产物
-uploads/
 apps/*/uploads/
 *.log
 *.tsbuildinfo

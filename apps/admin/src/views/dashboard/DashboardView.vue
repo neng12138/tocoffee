@@ -26,16 +26,27 @@ async function checkHealth() {
   <el-card shadow="never" class="placeholder-card">
     <template #header>
       <div class="card-header">
-        <span>Day 1 脚手架</span>
-        <el-tag type="info" effect="plain">待接业务</el-tag>
+        <span>门店工作台</span>
+        <el-tag type="success" effect="plain">Day 5</el-tag>
       </div>
     </template>
 
     <h2>ToCoffee 管理端</h2>
     <p class="muted">
-      Vue 3 + Vite + Element Plus + Pinia + Vue Router 已就绪。
-      订单、商品、规格、门店和工作台页面从 Day 5 开始接入。
+      分类、商品、规格和图片上传已接入。订单看板、接单与出杯流程将在后续 Day 接入。
     </p>
+
+    <div class="quick-links">
+      <RouterLink to="/categories">
+        <el-button plain>分类管理</el-button>
+      </RouterLink>
+      <RouterLink to="/products">
+        <el-button plain>商品管理</el-button>
+      </RouterLink>
+      <RouterLink to="/specs">
+        <el-button plain>规格管理</el-button>
+      </RouterLink>
+    </div>
 
     <div class="health-row">
       <el-button type="primary" :loading="checking" @click="checkHealth">
@@ -68,6 +79,13 @@ h2 {
 
 .muted {
   color: var(--tc-muted);
+}
+
+.quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0 4px;
 }
 
 .health-row {
