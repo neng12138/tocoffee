@@ -49,11 +49,12 @@ ToMe/
 任务：
 
 - 先按 `docs/architecture/project-structure.md` 建目录骨架，再写第一个文件；目录职责、分层、依赖方向、命名以该文档为准。
-- `git init`，默认分支 `main`；首次提交包含设计文档、结构规范与本计划。
-- `.gitignore`：`node_modules`、`dist`、`.env`、`uploads`、`*.log`、`.DS_Store`、`apps/passenger/dist`。
+- 仓库已初始化并推送；当前工作分支 `nengxiong`（跟踪 `origin/nengxiong`），首次提交 `02e1f4c` 已包含设计、结构规范与本计划。**不要再 `git init`**；后续默认提交到 `nengxiong`，只有用户明确要求才推 `main`。
+- `.gitignore` 已包含 `node_modules`、`dist`、`.env`、`uploads`、`*.log`、`.DS_Store` 等；按实际脚手架补充。
 - `docker-compose.yml`：`postgres:16`，项目名 `tocoffee`，容器 `tocoffee-postgres`，库/用户/密码 `tocoffee`，主机端口 **5433**（避开 OneSoon 的 5432），卷 `tocoffee_pgdata`，网络 `tocoffee_default`，健康检查 `pg_isready`。
 - 与 OneSoon 完全隔离：不复用 `onesoon` 的库、容器、卷、网络；API 启动时校验 `current_database() = 'tocoffee'`。
 - `.env.example`：按设计 12.5 节，补 `DATABASE_URL`、JWT 双 secret、`AUTH_DEV_MODE=true`、`PAYMENT_MODE=mock`、`PUBLIC_BASE_URL`。
+- 首次启动前复制 `.env.example` 为 `.env`（已忽略）；API 从 `.env` 读取连接串和 JWT secret，Compose 用默认值也能起库。
 - `README.md`：环境要求、四条启动命令、演示账号、常见问题。
 - `apps/api`：NestJS CLI 脚手架，端口 3000，全局前缀 `/api`，Swagger 仅 dev。
 - `apps/admin`：Vite + Vue3 + TS + Element Plus + Pinia + Vue Router + Axios，端口 5173。
@@ -83,6 +84,7 @@ ToMe/
 
 ### 4.2 迁移与 seed
 
+- 安装锁定版本：`npm i prisma@6.19.3 @prisma/client@6.19.3`；**不要裸 `npm i prisma`**（npm `latest` 当前是 8.0.0-rc，且与 client 7.x 不匹配）。
 - `npx prisma migrate dev --name init`，检查生成的 SQL 含全部索引/约束。
 - `prisma/seed.ts` 用 upsert，可重复执行：
   - 门店：ToCoffee 示例店，08:00–20:00，`prepMinutes=8`，`perOrderMinutes=2`。

@@ -60,7 +60,7 @@ P0 管理端先做「店主一个账号」，角色模型预留 `OWNER` / `STAFF
 
 **平台**
 
-- PostgreSQL 16 + Prisma schema/migrations + seed。
+- PostgreSQL 16 + Prisma 6.19.3（`prisma` 与 `@prisma/client` 同版本锁定）+ schema/migrations + seed。
 - Docker Compose 起 Postgres；API/两个前端本地 npm 启动。
 - Swagger（非生产环境）、健康检查、统一错误码、请求日志。
 - 单元测试 + 订单闭环 e2e。
@@ -132,7 +132,7 @@ P0 管理端先做「店主一个账号」，角色模型预留 `OWNER` / `STAFF
 
 ### 5.4 数据访问
 
-Prisma（选中）vs 原生 `pg` vs TypeORM。选 Prisma：schema 即文档、迁移可回放、类型安全，适合 15+ 张表的首期。若团队坚持与 OneSoon 一致的原生 `pg`，可在开工前替换，不影响领域模型。
+Prisma（选中）vs 原生 `pg` vs TypeORM。选 Prisma：schema 即文档、迁移可回放、类型安全，适合 15+ 张表的首期。若团队坚持与 OneSoon 一致的原生 `pg`，可在开工前替换，不影响领域模型。**版本锁定 6.19.3**：npm 上 `prisma` 的 `latest` 目前指向 8.0.0-rc，不能裸 `npm i prisma`，否则会装到 RC 且与 `@prisma/client` 7.x 不匹配。
 
 ### 5.5 支付
 
@@ -748,6 +748,9 @@ ToMe/
 ### 13.2 本地启动
 
 ```bash
+# 0. 环境变量（首次；Windows 用 Copy-Item .env.example .env）
+cp .env.example .env
+
 # 1. Postgres
 docker compose up -d
 
