@@ -48,5 +48,16 @@
 - 菜单公开规则：active 分类；商品保留 `ON_SALE`/`SOLD_OUT`、排除 `OFF_SHELF`；规格组/选项按 sort；`isAvailable=false` 的选项不下发。
 - `business_hours.day` 严格要求数字 1–7（周一=1），不接受字符串数字；P0 不支持跨天营业。
 - `@nestjs/jwt` 的 `expiresIn` 类型是 `ms.StringValue`，从环境变量读到普通 string 时需要显式收窄；当前运行值 `7d`/`12h`。
-- `uploads/` 仍未被静态托管，菜单图片 URL 会 404；D5 接上传时一起补，或先用占位图 URL。
+- `uploads/` 在 D3 时未静态托管，菜单图片 URL 会 404；D4 已用 `NestExpressApplication.useStaticAssets` 挂到 `/uploads/`，本地图片 200。
 - e2e 依赖本地 Docker PostgreSQL 与 D2 seed；跑之前确认 `tocoffee-postgres` healthy。
+
+## 2026-11-04 D4 顾客端点单
+
+- API 静态图片：`main.ts` 改为 `NestFactory.create<NestExpressApplication>`，挂载 `process.cwd()/uploads` 到 `/uploads/`；菜单图片 URL 由 `PUBLIC_BASE_URL` 拼接，H5 走 Vite 代理，小程序开发期直连 `http://127.0.0.1:3000`。生产要换成同域 HTTPS 域名并把小程序合法域名加白。
+- 顾客端 API base：H5 用相对 `/api`，小程序用 `http://127.0.0.1:3000/api`；`uni.request` 类型不支持 PATCH，客户端只允许 GET/POST/PUT/DELETE。
+- 购物车只存本地：key `tocoffee.cart.v1`，按 `storeId` 隔离，同商品同规格用 `productId + sortedOptionIds` 合并，单规格数量上限 20。D6 下单前必须由服务端 quote 重算价格，不能信任本地 unitPrice。
+- 规格弹层对必选组没有默认项时自动选第一个；多选组按 `maxSelect` 截断，减少“加购按钮不可用”的困惑。商品特例（茶饮默认冰、生椰拿铁默认椰奶）仍未入库，D6 定价层按商品覆盖。
+- 小程序商品图/logo 使用本地 `static`，商品图 URL 指向本机 API；微信开发者工具需保持 `urlCheck=false`（模板默认）。
+- Chrome headless 有最小视口 512px，直接 `--window-size=390` 截图会被裁；用 CDP `Emulation.setDeviceMetricsOverride` 设 390×844 后页面正常，确认不是布局 bug。
+- H5 验收：390×844 下首页、菜单、规格弹层、购物车渲染正常；点击加购后购物车出现，刷新后能从 storage 恢复；控制台 0 error。
+- D4 的「去结算」是占位，D8 接订单/支付后才可用。

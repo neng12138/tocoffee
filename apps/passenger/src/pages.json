@@ -5,6 +5,12 @@
       "style": {
         "navigationBarTitleText": "ToCoffee"
       }
+    },
+    {
+      "path": "pages/menu/menu",
+      "style": {
+        "navigationBarTitleText": "点单"
+      }
     }
   ],
   "globalStyle": {
