@@ -1,5 +1,6 @@
 // ToCoffee 数据模型唯一来源。
-// Day 1 只建立连接与 generate；15 张业务表在 Day 2 加入。
+// P0 共 15 张业务表；金额统一用整数分，时间统一 timestamptz(3)，
+// business_date 用 date（Asia/Shanghai 的取餐营业日）。
 
 generator client {
   provider = "prisma-client-js"
@@ -8,4 +9,386 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum StaffRole {
+  OWNER
+  STAFF
+
+  @@map("staff_role")
+}
+
+enum StaffStatus {
+  ACTIVE
+  DISABLED
+
+  @@map("staff_status")
+}
+
+enum CategoryStatus {
+  ACTIVE
+  DISABLED
+
+  @@map("category_status")
+}
+
+enum ProductStatus {
+  ON_SALE
+  SOLD_OUT
+  OFF_SHELF
+
+  @@map("product_status")
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  ACCEPTED
+  READY
+  COMPLETED
+  NO_SHOW
+  CANCELED
+  REFUNDING
+  REFUNDED
+
+  @@map("order_status")
+}
+
+enum PickupType {
+  SELF_PICKUP
+
+  @@map("pickup_type")
+}
+
+enum PickupTimeType {
+  ASAP
+  SCHEDULED
+
+  @@map("pickup_time_type")
+}
+
+enum ActorType {
+  CUSTOMER
+  STAFF
+  SYSTEM
+
+  @@map("actor_type")
+}
+
+enum PaymentProvider {
+  MOCK
+  WECHAT
+
+  @@map("payment_provider")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+
+  @@map("payment_status")
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCESS
+  FAILED
+
+  @@map("refund_status")
+}
+
+model Store {
+  id                String   @id @default(uuid()) @db.Uuid
+  name              String   @db.VarChar(80)
+  address           String   @db.VarChar(255)
+  phone             String?  @db.VarChar(32)
+  latitude          Float?
+  longitude         Float?
+  businessHours     Json     @map("business_hours") @db.JsonB
+  isAcceptingOrders Boolean  @default(true) @map("is_accepting_orders")
+  prepMinutes       Int      @default(8) @map("prep_minutes")
+  perOrderMinutes   Int      @default(2) @map("per_order_minutes")
+  pickupNotice      String?  @map("pickup_notice") @db.Text
+  pickupCodePrefix  String   @default("A") @map("pickup_code_prefix") @db.VarChar(4)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  staff          Staff[]
+  categories     Category[]
+  products       Product[]
+  specGroups     SpecGroup[]
+  orders         Order[]
+  pickupCounters PickupCounter[]
+
+  @@map("stores")
+}
+
+model Staff {
+  id           String      @id @default(uuid()) @db.Uuid
+  storeId      String      @map("store_id") @db.Uuid
+  username     String      @db.VarChar(50)
+  passwordHash String      @map("password_hash") @db.VarChar(100)
+  name         String      @db.VarChar(50)
+  role         StaffRole   @default(STAFF)
+  status       StaffStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@unique([storeId, username])
+  @@index([storeId, status])
+  @@map("staff")
+}
+
+model Member {
+  id          String    @id @default(uuid()) @db.Uuid
+  phone       String?   @unique @db.VarChar(20)
+  openid      String?   @unique @db.VarChar(64)
+  nickname    String?   @db.VarChar(50)
+  avatarUrl   String?   @map("avatar_url") @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(3)
+
+  orders Order[]
+
+  @@map("members")
+}
+
+model VerificationCode {
+  id         String    @id @default(uuid()) @db.Uuid
+  phone      String    @db.VarChar(20)
+  codeHash   String    @map("code_hash") @db.VarChar(100)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([phone, createdAt])
+  @@map("verification_codes")
+}
+
+model Category {
+  id        String         @id @default(uuid()) @db.Uuid
+  storeId   String         @map("store_id") @db.Uuid
+  name      String         @db.VarChar(50)
+  sort      Int            @default(0)
+  status    CategoryStatus @default(ACTIVE)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  products Product[]
+
+  @@index([storeId, sort])
+  @@map("categories")
+}
+
+model Product {
+  id             String        @id @default(uuid()) @db.Uuid
+  storeId        String        @map("store_id") @db.Uuid
+  categoryId     String        @map("category_id") @db.Uuid
+  name           String        @db.VarChar(80)
+  description    String?       @db.Text
+  imageUrl       String?       @map("image_url") @db.VarChar(500)
+  basePriceCents Int           @map("base_price_cents")
+  tags           Json          @default("[]") @db.JsonB
+  status         ProductStatus @default(ON_SALE)
+  sort           Int           @default(0)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  store      Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category   Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  specGroups ProductSpecGroup[]
+  orderItems OrderItem[]
+
+  @@index([storeId, categoryId, status, sort])
+  @@map("products")
+}
+
+model SpecGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  storeId     String   @map("store_id") @db.Uuid
+  name        String   @db.VarChar(50)
+  required    Boolean  @default(true)
+  multiSelect Boolean  @default(false) @map("multi_select")
+  minSelect   Int      @default(1) @map("min_select")
+  maxSelect   Int      @default(1) @map("max_select")
+  sort        Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  store    Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  options  SpecOption[]
+  products ProductSpecGroup[]
+
+  @@index([storeId, sort])
+  @@map("spec_groups")
+}
+
+model SpecOption {
+  id              String   @id @default(uuid()) @db.Uuid
+  groupId         String   @map("group_id") @db.Uuid
+  name            String   @db.VarChar(50)
+  priceDeltaCents Int      @default(0) @map("price_delta_cents")
+  isDefault       Boolean  @default(false) @map("is_default")
+  isAvailable     Boolean  @default(true) @map("is_available")
+  sort            Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  group SpecGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, sort])
+  @@map("spec_options")
+}
+
+model ProductSpecGroup {
+  productId String @map("product_id") @db.Uuid
+  groupId   String @map("group_id") @db.Uuid
+  sort      Int    @default(0)
+
+  product Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  group   SpecGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([productId, groupId])
+  @@index([groupId])
+  @@map("product_spec_groups")
+}
+
+model Order {
+  id               String         @id @default(uuid()) @db.Uuid
+  orderNo          String         @unique @map("order_no") @db.VarChar(32)
+  storeId          String         @map("store_id") @db.Uuid
+  memberId         String         @map("member_id") @db.Uuid
+  status           OrderStatus    @default(PENDING_PAYMENT)
+  pickupType       PickupType     @default(SELF_PICKUP) @map("pickup_type")
+  pickupTimeType   PickupTimeType @default(ASAP) @map("pickup_time_type")
+  scheduledAt      DateTime?      @map("scheduled_at") @db.Timestamptz(3)
+  releaseAt        DateTime?      @map("release_at") @db.Timestamptz(3)
+  releasedAt       DateTime?      @map("released_at") @db.Timestamptz(3)
+  pickupCode       String?        @map("pickup_code") @db.VarChar(8)
+  businessDate     DateTime       @map("business_date") @db.Date
+  itemsAmountCents Int            @map("items_amount_cents")
+  discountCents    Int            @default(0) @map("discount_cents")
+  payableCents     Int            @map("payable_cents")
+  paidCents        Int            @default(0) @map("paid_cents")
+  couponId         String?        @map("coupon_id") @db.Uuid
+  remark           String?        @db.VarChar(255)
+  contactName      String?        @map("contact_name") @db.VarChar(50)
+  contactPhone     String?        @map("contact_phone") @db.VarChar(20)
+  estimatedReadyAt DateTime?      @map("estimated_ready_at") @db.Timestamptz(3)
+  expiresAt        DateTime       @map("expires_at") @db.Timestamptz(3)
+  idempotencyKey   String?        @map("idempotency_key") @db.VarChar(64)
+  cancelReason     String?        @map("cancel_reason") @db.VarChar(255)
+  paidAt           DateTime?      @map("paid_at") @db.Timestamptz(3)
+  acceptedAt       DateTime?      @map("accepted_at") @db.Timestamptz(3)
+  readyAt          DateTime?      @map("ready_at") @db.Timestamptz(3)
+  completedAt      DateTime?      @map("completed_at") @db.Timestamptz(3)
+  noShowAt         DateTime?      @map("no_show_at") @db.Timestamptz(3)
+  canceledAt       DateTime?      @map("canceled_at") @db.Timestamptz(3)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  store    Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  member   Member       @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  items    OrderItem[]
+  events   OrderEvent[]
+  payments Payment[]
+  refunds  Refund[]
+
+  @@unique([memberId, idempotencyKey])
+  @@index([storeId, status, createdAt])
+  @@index([storeId, businessDate])
+  @@index([storeId, pickupTimeType, releasedAt])
+  @@index([storeId, scheduledAt])
+  @@index([memberId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  orderId        String  @map("order_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  productName    String  @map("product_name") @db.VarChar(80)
+  productImage   String? @map("product_image") @db.VarChar(500)
+  specSnapshot   Json    @map("spec_snapshot") @db.JsonB
+  specText       String  @map("spec_text") @db.VarChar(255)
+  unitPriceCents Int     @map("unit_price_cents")
+  quantity       Int
+  totalCents     Int     @map("total_cents")
+  remark         String? @db.VarChar(255)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderEvent {
+  id         String       @id @default(uuid()) @db.Uuid
+  orderId    String       @map("order_id") @db.Uuid
+  fromStatus OrderStatus? @map("from_status")
+  toStatus   OrderStatus  @map("to_status")
+  actorType  ActorType    @map("actor_type")
+  actorId    String?      @map("actor_id") @db.Uuid
+  note       String?      @db.Text
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model Payment {
+  id            String          @id @default(uuid()) @db.Uuid
+  orderId       String          @map("order_id") @db.Uuid
+  provider      PaymentProvider
+  transactionId String?         @map("transaction_id") @db.VarChar(64)
+  amountCents   Int             @map("amount_cents")
+  status        PaymentStatus   @default(PENDING)
+  rawPayload    Json?           @map("raw_payload") @db.JsonB
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  paidAt        DateTime?       @map("paid_at") @db.Timestamptz(3)
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds Refund[]
+
+  @@unique([provider, transactionId])
+  @@index([orderId])
+  @@map("payments")
+}
+
+model Refund {
+  id               String       @id @default(uuid()) @db.Uuid
+  orderId          String       @map("order_id") @db.Uuid
+  paymentId        String       @map("payment_id") @db.Uuid
+  amountCents      Int          @map("amount_cents")
+  reason           String?      @db.VarChar(255)
+  status           RefundStatus @default(PENDING)
+  providerRefundId String?      @map("provider_refund_id") @db.VarChar(64)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt      DateTime?    @map("completed_at") @db.Timestamptz(3)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+model PickupCounter {
+  storeId      String   @map("store_id") @db.Uuid
+  businessDate DateTime @map("business_date") @db.Date
+  lastSeq      Int      @default(0) @map("last_seq")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([storeId, businessDate])
+  @@map("pickup_counters")
 }

@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-D1 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、H5/小程序构建均通过。
-微信开发者工具的自动导入受 AppID 限制（`touristappid` 被新版 IDE 拒绝），首次导入需手动选择测试号或填入可用 AppID；其余 D1 验收已通过。
+D1–D2 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）均已落地。
+小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
 
@@ -48,9 +48,14 @@ docker compose ps
 cd apps/api
 Copy-Item .env.example .env
 npm install
-npx prisma generate
+npx prisma migrate deploy
+npm run seed
 npm run start:dev
 ```
+
+- `migrate deploy` 应用 `prisma/migrations` 下的迁移；日常改 schema 用 `npx prisma migrate dev`
+- `seed` 可重复执行：示例门店、owner、5 分类、12 商品、5 规格组、15 选项
+- 演示账号：`owner / admin123`
 
 - API：<http://localhost:3000/api>
 - 健康检查：<http://localhost:3000/api/health>，返回 `{"status":"ok","db":"up"}`
@@ -99,5 +104,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/check.ps1
 
 - **5432 被占用**：ToCoffee 固定用 5433；不要改回 5432，避免连到 OneSoon。
 - **H5 打开失败**：服务绑定在本机回环地址，请用 `http://127.0.0.1:5174/` 或 `http://localhost:5174/`，不要用局域网 IP。
-- **微信开发者工具报「不存在此 AppID」**：项目当前用 `touristappid`。在导入窗口选择「测试号」，或在 `apps/passenger/src/manifest.json` 填入自己的小程序 AppID 后重新构建。
+- **微信开发者工具报「不存在此 AppID」**：构建默认写 `touristappid`，会被新版 IDE 拒绝。手动导入时选择可用 AppID（本机已用 `wx7c9cd90fc226004b`）；或在 `apps/passenger/src/manifest.json` 填入自己的小程序 AppID 后重新构建。
 - **Prisma 版本**：必须保持 `prisma@6.19.3` 与 `@prisma/client@6.19.3`，不要裸装 `latest`（当前是 8.0.0-rc）。
