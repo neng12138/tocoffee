@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-D1–D2 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）均已落地。
+D1–D3 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API 均已落地。
 小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
@@ -61,6 +61,22 @@ npm run start:dev
 - 健康检查：<http://localhost:3000/api/health>，返回 `{"status":"ok","db":"up"}`
 - Swagger：<http://localhost:3000/api/docs>
 
+### 2.1 D3 已实现接口
+
+| 方法 | 路径 | 说明 | 鉴权 |
+|---|---|---|---|
+| GET | `/api/store` | 门店信息与营业状态 | 公开 |
+| GET | `/api/menu` | 当前门店菜单（分类 + 商品 + 规格） | 公开 |
+| GET | `/api/products/:id` | 商品详情 | 公开 |
+| POST | `/api/auth/code` | 发送顾客手机验证码 | 公开，5 次/分钟 |
+| POST | `/api/auth/login` | 验证码登录，不存在则注册 | 公开，5 次/分钟 |
+| GET | `/api/auth/me` | 当前顾客 | Bearer 顾客 token |
+| POST | `/api/admin/auth/login` | 员工账号密码登录 | 公开，5 次/分钟 |
+| GET | `/api/admin/auth/me` | 当前员工 | Bearer 员工 token |
+| POST | `/api/admin/auth/change-password` | 修改当前员工密码 | Bearer 员工 token |
+
+本地 `.env` 的 `AUTH_DEV_MODE=true` 时，`POST /api/auth/code` 会在响应里返回 `devCode`，用于 mock 短信登录；生产必须关闭。顾客 token 默认 7 天，员工 token 默认 12 小时，两者使用不同 secret 与 audience，不能互用。
+
 ### 3. 启动管理端
 
 ```powershell
@@ -69,7 +85,7 @@ npm install
 npm run dev
 ```
 
-打开 <http://127.0.0.1:5173/>。D1 只有工作台占位页和 API 健康检查按钮；登录在 D5 接入，演示账号 `owner / admin123`。
+打开 <http://127.0.0.1:5173/>。D3 管理端 UI 仍是占位页，登录页与门店/菜单管理在 D5 接入；API 已提供员工登录接口，演示账号 `owner / admin123`。
 
 ### 4. 启动顾客端
 
@@ -98,7 +114,7 @@ npm run dev:mp-weixin
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/check.ps1
 ```
 
-脚本检查容器健康、API 构建/测试、管理端构建、顾客端类型检查与空白错误；耗时约 1 分钟。
+脚本检查容器健康、API 构建/静态检查/单测/e2e、管理端构建、顾客端类型检查与空白错误；耗时约 1–2 分钟。
 
 ## 常见问题
 

@@ -38,3 +38,15 @@
 - 茶饮默认冰、生椰拿铁默认椰奶属于「按商品覆盖默认规格」，当前未入库；D4 前端选择规格或 D6 定价层按商品处理，避免在通用规格组里塞商品特例。
 - seed 图片源文件在 `apps/api/assets/seed/`，启动时复制到 `apps/api/uploads/seed/`；`uploads/` 被 gitignore，图片 URL 为 `${PUBLIC_BASE_URL}/uploads/seed/...`，静态托管尚未接入（D3/D5 补）。
 - seed 密码：`owner / admin123`；仅演示用，P1 上线前必须改。
+
+## 2026-11-04 D3 鉴权与公开接口
+
+- 鉴权不用 Passport：`CustomerJwtGuard`/`StaffJwtGuard` 直接 `JwtService.verifyAsync`，分别校验 audience `tocoffee-customer` / `tocoffee-staff` 与不同 secret；顾客 token 7d、员工 12h。
+- 验证码 mock：`AUTH_DEV_MODE=true` 时 `/api/auth/code` 返回 `devCode`；生产必须关闭并替换短信服务。验证码落库只存 bcrypt hash，5 分钟过期，一次性消费。
+- 限流为单进程内存 Map（5 次/分钟），只适合本地单实例；多实例或生产要换 Redis。超限返回 429，details 带 `retryAfterSeconds`。
+- 员工改密是计划外补充：owner 需要能改 seed 默认密码；要求新密码 ≥8 位且同时包含字母和数字。
+- 菜单公开规则：active 分类；商品保留 `ON_SALE`/`SOLD_OUT`、排除 `OFF_SHELF`；规格组/选项按 sort；`isAvailable=false` 的选项不下发。
+- `business_hours.day` 严格要求数字 1–7（周一=1），不接受字符串数字；P0 不支持跨天营业。
+- `@nestjs/jwt` 的 `expiresIn` 类型是 `ms.StringValue`，从环境变量读到普通 string 时需要显式收窄；当前运行值 `7d`/`12h`。
+- `uploads/` 仍未被静态托管，菜单图片 URL 会 404；D5 接上传时一起补，或先用占位图 URL。
+- e2e 依赖本地 Docker PostgreSQL 与 D2 seed；跑之前确认 `tocoffee-postgres` healthy。

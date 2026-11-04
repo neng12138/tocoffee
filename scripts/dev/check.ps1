@@ -41,7 +41,9 @@ try {
   }
 
   Invoke-Check 'API build' 'apps/api' { npm run build }
+  Invoke-Check 'API lint' 'apps/api' { npm run lint }
   Invoke-Check 'API tests' 'apps/api' { npm test }
+  Invoke-Check 'API e2e' 'apps/api' { npm run test:e2e }
   Invoke-Check 'Admin build' 'apps/admin' { npm run build }
   Invoke-Check 'Passenger type-check' 'apps/passenger' { npm run type-check }
 
