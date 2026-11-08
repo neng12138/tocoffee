@@ -22,6 +22,12 @@ const router = createRouter({
           meta: { title: '工作台' },
         },
         {
+          path: 'orders',
+          name: 'orders',
+          component: () => import('../views/orders/OrderBoardView.vue'),
+          meta: { title: '订单看板' },
+        },
+        {
           path: 'categories',
           name: 'categories',
           component: () => import('../views/catalog/CategoryView.vue'),

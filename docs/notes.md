@@ -115,3 +115,15 @@
 - **H5 dev watcher 坑**：编辑 `apps/passenger/src` 时 Vite 可能监听编辑器临时目录 `.tmpdir` 并报 `EBUSY ... .tmpdir/*.tmp` 崩溃；当前用 `npm run build:h5` + `npx vite preview --outDir dist/build/h5` 做视觉验收。后续可加 `server.watch.ignored: ['**/*.tmpdir/**']` 或换编辑器原子写策略。
 - 浏览器全流程已验证：首页→菜单→规格→加购→购物车→结算→（已登录）支付→结果页，取餐码 `A014`、状态 `PAID`、控制台 0 error、无失败资源。
 - 已知小问题：结算页联系人默认显示会员昵称，而 seed 会员昵称就是手机号；不影响下单，D14 再优化显示。
+
+## 2026-11-08 D9 订单看板
+
+- 管理端订单接口全部按 `staff.storeId` 隔离；`GET /api/admin/orders` 的 `date` 默认上海今天，按 `business_date` 过滤，不是 `created_at`。
+- Tab 口径：`ACTIVE`=`PAID/ACCEPTED/READY` 且（立即单或 `released_at` 非空）；`SCHEDULED`=`PAID + SCHEDULED + released_at IS NULL`；`ALL` 排除 `PENDING_PAYMENT/CANCELED`。
+- 所有动作都用 `updateMany` 条件更新（id + storeId + 当前状态），0 行再查当前状态抛 409 `ORDER_INVALID_STATUS`；未释放预约接单额外抛 409 `ORDER_NOT_RELEASED`。
+- 拒单退款在 mock 下同步完成：事务内 `PAID/ACCEPTED/READY/NO_SHOW → REFUNDING`，写拒单事件，调 `PaymentsService.refund`，再置 `REFUNDED` 并写退款事件；原 `payments` 标记 `REFUNDED`。
+- 新单提示音需要用户手势开启，音频用 Web Audio 生成；未释放预约不响铃；新单还会闪烁 `document.title`，窗口 focus 时停止。
+- 看板 5 秒轮询，不用 WebSocket；P0 单店足够，P1 再评估。
+- 管理端路由 `/orders` 已接侧边栏与工作台快捷入口；`OrderBoardView.vue` 的订单卡点击打开 Drawer，操作按钮 `@click.stop` 防止冒泡。
+- Element Plus 全量引入导致主 chunk 约 870 kB；D14 再评估按需引入。
+- 已知风险：预约释放/超时取消/NO_SHOW 任务尚未实现（D10），所以当前 `SCHEDULED` 订单不会自动进入 `ACTIVE`。

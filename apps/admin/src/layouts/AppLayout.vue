@@ -36,6 +36,7 @@ async function logout() {
 
       <nav class="app-nav" aria-label="管理端导航">
         <RouterLink to="/" class="nav-item">工作台</RouterLink>
+        <RouterLink to="/orders" class="nav-item">订单看板</RouterLink>
         <RouterLink to="/categories" class="nav-item">分类管理</RouterLink>
         <RouterLink to="/products" class="nav-item">商品管理</RouterLink>
         <RouterLink to="/specs" class="nav-item">规格管理</RouterLink>
@@ -43,7 +44,7 @@ async function logout() {
 
       <div class="sidebar-foot">
         <span>P0 · 单店自提</span>
-        <span>Day 5 · 商品与规格</span>
+        <span>Day 9 · 订单看板</span>
       </div>
     </aside>
 
@@ -57,7 +58,10 @@ async function logout() {
         <div class="header-user">
           <el-tag type="success" effect="plain">开发环境</el-tag>
           <template v-if="auth.staff">
-            <span class="user-name">{{ auth.staff.name }} · {{ roleLabel }}</span>
+            <span class="user-name">
+              {{ auth.staff.name }}
+              <template v-if="auth.staff.name !== roleLabel"> · {{ roleLabel }}</template>
+            </span>
             <el-button link type="primary" @click="logout">退出登录</el-button>
           </template>
         </div>

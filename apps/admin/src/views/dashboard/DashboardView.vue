@@ -27,16 +27,19 @@ async function checkHealth() {
     <template #header>
       <div class="card-header">
         <span>门店工作台</span>
-        <el-tag type="success" effect="plain">Day 5</el-tag>
+        <el-tag type="success" effect="plain">Day 9</el-tag>
       </div>
     </template>
 
     <h2>ToCoffee 管理端</h2>
     <p class="muted">
-      分类、商品、规格和图片上传已接入。订单看板、接单与出杯流程将在后续 Day 接入。
+      分类、商品、规格和图片上传已接入；订单看板支持接单、出杯、确认取餐与拒单退款。
     </p>
 
     <div class="quick-links">
+      <RouterLink to="/orders">
+        <el-button type="primary">订单看板</el-button>
+      </RouterLink>
       <RouterLink to="/categories">
         <el-button plain>分类管理</el-button>
       </RouterLink>
