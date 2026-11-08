@@ -1,3 +1,5 @@
+import { CUSTOMER_TOKEN_KEY } from '@/constants/auth'
+
 let defaultBaseUrl = '/api'
 
 // 小程序没有 Vite 代理，开发时直连本机 API。
@@ -6,6 +8,16 @@ defaultBaseUrl = 'http://127.0.0.1:3000/api'
 // #endif
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || defaultBaseUrl).replace(/\/$/, '')
+
+const TOKEN_STORAGE_KEY = CUSTOMER_TOKEN_KEY
+
+export function getStoredToken(): string {
+  try {
+    return (uni.getStorageSync(TOKEN_STORAGE_KEY) as string) || ''
+  } catch {
+    return ''
+  }
+}
 
 export class ApiClientError extends Error {
   readonly code: string
@@ -65,5 +77,16 @@ export function request<T>(path: string, options: RequestOptions = {}): Promise<
         reject(new ApiClientError('NETWORK_ERROR', '网络连接失败，请确认 API 已启动', 0, error))
       },
     })
+  })
+}
+
+export function authRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const token = getStoredToken()
+  return request<T>(path, {
+    ...options,
+    header: {
+      ...options.header,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   })
 }

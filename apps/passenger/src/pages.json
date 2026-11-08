@@ -11,6 +11,24 @@
       "style": {
         "navigationBarTitleText": "点单"
       }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/checkout/checkout",
+      "style": {
+        "navigationBarTitleText": "确认订单"
+      }
+    },
+    {
+      "path": "pages/order/result",
+      "style": {
+        "navigationBarTitleText": "订单详情"
+      }
     }
   ],
   "globalStyle": {

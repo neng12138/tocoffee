@@ -1,9 +1,13 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
+  Param,
+  ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -17,7 +21,9 @@ import { CurrentMember } from '../../../common/auth/current-member.decorator.js'
 import type { AuthenticatedMember } from '../../../common/auth/auth.types.js';
 import { AppError } from '../../../common/errors/app-error.js';
 import { ERROR_CODES } from '../../../common/errors/error-codes.js';
+import { CancelOrderDto } from '../dto/cancel-order.dto.js';
 import { CreateOrderDto } from '../dto/create-order.dto.js';
+import { ListOrdersDto } from '../dto/list-orders.dto.js';
 import { QuoteDto } from '../dto/quote.dto.js';
 import { OrdersService } from '../services/orders.service.js';
 
@@ -52,5 +58,56 @@ export class OrdersController {
     }
 
     return this.ordersService.create(dto, member.id, idempotencyKey);
+  }
+
+  @Get()
+  @ApiOperation({ summary: '我的订单列表，可按状态筛选' })
+  list(
+    @CurrentMember() member: AuthenticatedMember | undefined,
+    @Query() query: ListOrdersDto,
+  ) {
+    if (!member) {
+      throw new AppError(ERROR_CODES.UNAUTHORIZED, '请先登录', 401);
+    }
+    return this.ordersService.list(member.id, query);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: '我的订单详情（含商品与状态时间线）' })
+  detail(
+    @CurrentMember() member: AuthenticatedMember | undefined,
+    @Param('id', new ParseUUIDPipe()) orderId: string,
+  ) {
+    if (!member) {
+      throw new AppError(ERROR_CODES.UNAUTHORIZED, '请先登录', 401);
+    }
+    return this.ordersService.detail(member.id, orderId);
+  }
+
+  @Post(':id/pay')
+  @HttpCode(200)
+  @ApiOperation({ summary: '发起 mock 支付；重复支付返回当前订单' })
+  pay(
+    @CurrentMember() member: AuthenticatedMember | undefined,
+    @Param('id', new ParseUUIDPipe()) orderId: string,
+  ) {
+    if (!member) {
+      throw new AppError(ERROR_CODES.UNAUTHORIZED, '请先登录', 401);
+    }
+    return this.ordersService.pay(orderId, member.id);
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(200)
+  @ApiOperation({ summary: '取消待支付订单' })
+  cancel(
+    @CurrentMember() member: AuthenticatedMember | undefined,
+    @Param('id', new ParseUUIDPipe()) orderId: string,
+    @Body() dto: CancelOrderDto,
+  ) {
+    if (!member) {
+      throw new AppError(ERROR_CODES.UNAUTHORIZED, '请先登录', 401);
+    }
+    return this.ordersService.cancel(orderId, member.id, dto);
   }
 }

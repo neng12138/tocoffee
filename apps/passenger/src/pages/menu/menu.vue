@@ -172,7 +172,7 @@ function handleCartChange(payload: { key: string; quantity: number }): void {
 
 function handleCheckout(): void {
   cartVisible.value = false
-  uni.showToast({ title: '结算页将在下一步接入', icon: 'none' })
+  uni.navigateTo({ url: '/pages/checkout/checkout' })
 }
 
 function retry(): void {

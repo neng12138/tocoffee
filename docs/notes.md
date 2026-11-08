@@ -99,3 +99,18 @@
 - e2e 配置改为 `fileParallelism: false`：测试共用一个 PostgreSQL，多个 suite 同时改门店营业时间会互相踩；顺序执行后 28 个 e2e 稳定通过。
 - D7 只做了 API，没有做顾客端结算页；「去结算」仍是占位。D8 做支付时一起接结算页，避免先做一半再改。
 - 新增测试会员 `13900000041`；afterAll 只删该会员的订单，不删会员，重复跑不会主键冲突，但测试库会累积会员。
+
+## 2026-11-08 D8 支付与订单
+
+- 支付在事务内先 `SELECT ... FOR UPDATE` 锁订单，再校验本人/状态/过期；同一订单重复支付直接返回已支付订单，不重复写 `payments`。这比只靠状态更新更稳，能挡住并发双击。
+- 立即单在支付时用 `paid_at` 重算 `business_date`，预约单用 `scheduled_at` 所在日；预约单的 `release_at` 也用 `paid_at` 重算，修掉了 D7 的两个临时偏差。
+- 取餐码只在支付成功时生成：`pickup_counters` 用 `INSERT ... ON CONFLICT DO UPDATE ... RETURNING last_seq` 原子取号，再拼 `A001`；唯一索引冲突时重试一次。取消/退款不回收号，未支付不占号。
+- 取餐码按 `store_id + business_date` 重置；立即单跨日支付会落到支付日号段，预约单落到取餐日号段。跨日/跨号段 currently 没有 e2e，D13 补。
+- 支付成功写 `PAID` 事件，立即单直接进待接单；预约单仍为 `PAID`，到 `release_at` 才由 D10 任务释放。过期订单当前只拒绝支付，不自动改状态，D10 补 `CANCELED`。
+- 取消只允许 `PENDING_PAYMENT`；已支付订单要走退款流程，D8 不提供直接取消。
+- 顾客端 `Idempotency-Key` 存在 `tocoffee.checkout.key`，按结算会话生成；待支付订单 id 存 `tocoffee.checkout.pendingOrder`，刷新结算页可继续支付。支付成功/过期后才清 key 和 pending。
+- 顾客端登录用手机号+验证码，`AUTH_DEV_MODE=true` 时自动填 `devCode`；token 存 `tocoffee.customer.token`。H5 与小程序都走同一套 `uni.request`。
+- H5 原生导航栏已提供标题/返回，checkout/result 不再自绘 topbar，避免双标题。
+- **H5 dev watcher 坑**：编辑 `apps/passenger/src` 时 Vite 可能监听编辑器临时目录 `.tmpdir` 并报 `EBUSY ... .tmpdir/*.tmp` 崩溃；当前用 `npm run build:h5` + `npx vite preview --outDir dist/build/h5` 做视觉验收。后续可加 `server.watch.ignored: ['**/*.tmpdir/**']` 或换编辑器原子写策略。
+- 浏览器全流程已验证：首页→菜单→规格→加购→购物车→结算→（已登录）支付→结果页，取餐码 `A014`、状态 `PAID`、控制台 0 error、无失败资源。
+- 已知小问题：结算页联系人默认显示会员昵称，而 seed 会员昵称就是手机号；不影响下单，D14 再优化显示。

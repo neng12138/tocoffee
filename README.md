@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-D1–D7 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传、服务端 quote 定价与金额单测，以及创建待支付订单（幂等 / 价格变化检测 / 预约释放时间）。
+D1–D8 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传、服务端 quote 定价与金额单测、创建待支付订单（幂等 / 价格变化检测 / 预约释放时间），以及 mock 支付、取餐码、订单查询/详情/取消和顾客端登录/结算/支付结果页。
 小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
@@ -165,6 +165,32 @@ npm run start:dev
 - 立即单当前先把 `businessDate` 记为创建日；D8 支付时若跨日，必须按支付日修正。15 分钟超时的支付拦截也在 D8。
 - D7 只做创建订单 API；结算页、支付、订单查询和取消在 D8。
 
+### 2.5 D8 支付、取餐码与订单
+
+以下接口均需要顾客 Bearer token，且只能操作自己的订单。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/orders/:id/pay` | mock 支付；成功返回 `PAID` 订单与取餐码 |
+| GET | `/api/orders` | 当前会员订单列表，支持 `status`、`page`、`pageSize` |
+| GET | `/api/orders/:id` | 订单详情（含商品快照与事件） |
+| POST | `/api/orders/:id/cancel` | 取消待支付订单，可带 `reason` |
+
+- 支付条件：仅本人、仅 `PENDING_PAYMENT`、未超过 `expiresAt`；重复支付同一订单直接返回已支付结果，不会重复扣款。过期返回 409 `ORDER_EXPIRED`，非待支付返回 409 `ORDER_NOT_PAYABLE`。
+- 支付成功：状态变 `PAID`，写 `paidAt`、`businessDate`、`pickupCode`、`estimatedReadyAt`、`releaseAt`（预约单），并写 `payments` 与订单事件。
+- 取餐码：`A001` 格式，按门店 + 营业日重置；支付成功时才生成并占用号段，取消/退款不回收。立即单营业日取支付日，预约单取取餐日。
+- ETA：立即单 `paidAt + prepMinutes + queueCount × perOrderMinutes`，封顶 30 分钟；预约单等于 `scheduledAt`；写单后不随队列变化。
+- 预约单支付后仍是 `PAID`，到 `releaseAt` 才释放进待接单；立即单支付后直接进待接单。
+- 取消仅允许 `PENDING_PAYMENT`，其他状态返回 409 `ORDER_INVALID_STATUS`；过期订单的自动取消在 D10。
+
+### 2.6 顾客端下单流程
+
+1. 菜单选规格加购，购物车「去结算」进入 `/pages/checkout/checkout`。
+2. 未登录先跳 `/pages/login/login`，验证码登录后回到结算页。
+3. 结算页调用 `POST /api/orders/quote` 服务端报价，可选择立即取餐或 15 分钟粒度的预约时间。
+4. 提交时带 `Idempotency-Key` 创建订单并调用支付；成功后跳 `/pages/order/result` 展示取餐码。
+5. 待支付订单会暂存在本地，可回到结算页继续支付；过期后清掉待支付状态。
+
 ### 3. 启动管理端
 
 ```powershell
@@ -201,8 +227,15 @@ npm run dev:mp-weixin
 - 首页：品牌 hero、门店营业状态、今日营业时间、制作时长、热销推荐。
 - 菜单：左侧分类 + 右侧商品滚动联动，支持加载/失败/空态、售罄保留并禁用加购。
 - 规格：底部弹层按规格组渲染，支持默认项、必选/多选、上下限、价格实时计算、数量 1–20。
-- 购物车：Pinia + `uni.setStorageSync`，同商品同规格合并，支持改数量、删除、清空、合计；「去结算」当前为 D8 前的占位按钮。
+- 购物车：Pinia + `uni.setStorageSync`，同商品同规格合并，支持改数量、删除、清空、合计；「去结算」已接 D8 结算页。
 - 商品图由 API 的 `/uploads` 静态目录提供；H5 走 Vite `/api` 代理，小程序开发期直连 `http://127.0.0.1:3000/api`。
+
+#### D8 已实现
+
+- 登录：手机号 + 验证码，开发环境自动填入 `devCode`；token 与会员信息存 uni storage。
+- 结算：服务端 quote、立即/预约取餐、联系人/手机号/备注、待支付订单恢复与继续支付。
+- 支付：mock 支付成功后清空购物车，跳转结果页展示 `PAID`、取餐码、预计出杯时间与订单明细。
+- 订单：支持列表、详情、取消待支付订单；支付幂等，重复点击不会重复扣款。
 
 #### D5 已实现
 

@@ -13,8 +13,11 @@ import { getZonedNow } from '../../../common/utils/time.js';
 import { PrismaService } from '../../../database/prisma.service.js';
 import type { StorePublic } from '../../stores/types/store.types.js';
 import { StoresService } from '../../stores/services/stores.service.js';
+import type { CancelOrderDto } from '../dto/cancel-order.dto.js';
 import type { CreateOrderDto } from '../dto/create-order.dto.js';
+import type { ListOrdersDto } from '../dto/list-orders.dto.js';
 import type { QuoteDto } from '../dto/quote.dto.js';
+import { PaymentsService } from '../../payments/services/payments.service.js';
 import {
   toOrderPublic,
   type OrderWithRelations,
@@ -24,9 +27,11 @@ import type {
   PricingProduct,
   QuoteResult,
 } from '../types/pricing.types.js';
+import { PickupCodeService } from './pickup-code.service.js';
 import { PricingService } from './pricing.service.js';
 
 const ORDER_EXPIRY_MINUTES = 15;
+const MAX_ASAP_READY_MINUTES = 30;
 const MAX_ORDER_NO_ATTEMPTS = 3;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -65,6 +70,8 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly storesService: StoresService,
     private readonly pricingService: PricingService,
+    private readonly paymentsService: PaymentsService,
+    private readonly pickupCodeService: PickupCodeService,
   ) {}
 
   async quote(dto: QuoteDto): Promise<QuoteResult> {
@@ -192,6 +199,278 @@ export class OrdersService {
       '创建订单失败，请稍后重试',
       500,
     );
+  }
+
+  async list(memberId: string, query: ListOrdersDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const where: Prisma.OrderWhereInput = {
+      memberId,
+      ...(query.status ? { status: query.status } : {}),
+    };
+
+    const [total, orders] = await this.prisma.$transaction([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          items: true,
+          events: { orderBy: { createdAt: 'asc' } },
+        },
+      }),
+    ]);
+
+    return {
+      items: orders.map(toOrderPublic),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async detail(memberId: string, orderId: string): Promise<OrderPublic> {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, memberId },
+      include: {
+        items: true,
+        events: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+
+    if (!order) {
+      throw new AppError(ERROR_CODES.NOT_FOUND, '订单不存在', 404);
+    }
+
+    return toOrderPublic(order);
+  }
+
+  async pay(orderId: string, memberId: string): Promise<OrderPublic> {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const locked = await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT id FROM orders
+            WHERE id = ${orderId}::uuid AND member_id = ${memberId}::uuid
+            FOR UPDATE
+          `;
+          if (!locked.length) {
+            throw new AppError(ERROR_CODES.NOT_FOUND, '订单不存在', 404);
+          }
+
+          const order = await tx.order.findUniqueOrThrow({
+            where: { id: orderId },
+            include: {
+              items: true,
+              events: { orderBy: { createdAt: 'asc' } },
+            },
+          });
+
+          // 重复支付直接返回当前订单，不重复写支付记录。
+          if (order.status === OrderStatus.PAID) {
+            return toOrderPublic(order);
+          }
+          if (order.status !== OrderStatus.PENDING_PAYMENT) {
+            throw new AppError(
+              ERROR_CODES.ORDER_NOT_PAYABLE,
+              '当前订单不可支付',
+              409,
+              { status: order.status },
+            );
+          }
+
+          const now = new Date();
+          if (order.expiresAt.getTime() <= now.getTime()) {
+            throw new AppError(
+              ERROR_CODES.ORDER_EXPIRED,
+              '订单已超时关闭，请重新下单',
+              409,
+            );
+          }
+
+          const store = await tx.store.findUniqueOrThrow({
+            where: { id: order.storeId },
+          });
+          const scheduledAt =
+            order.pickupTimeType === PickupTimeType.SCHEDULED
+              ? order.scheduledAt
+              : null;
+          const businessDate = toBusinessDate(scheduledAt ?? now);
+          const releaseAt = scheduledAt
+            ? calculateReleaseAt(scheduledAt, store.prepMinutes, now)
+            : null;
+
+          const queueCount = await tx.order.count({
+            where: {
+              storeId: order.storeId,
+              status: { in: [OrderStatus.PAID, OrderStatus.ACCEPTED] },
+              OR: [
+                { pickupTimeType: PickupTimeType.ASAP },
+                { releasedAt: { not: null } },
+              ],
+            },
+          });
+
+          const estimatedReadyAt = scheduledAt
+            ? scheduledAt
+            : new Date(
+                now.getTime() +
+                  Math.min(
+                    MAX_ASAP_READY_MINUTES,
+                    store.prepMinutes +
+                      queueCount * store.perOrderMinutes,
+                  ) *
+                    60_000,
+              );
+
+          const seq = await this.nextPickupSequence(
+            tx,
+            store.id,
+            businessDate,
+          );
+          const pickupCode = this.pickupCodeService.format(
+            store.pickupCodePrefix,
+            seq,
+          );
+
+          await this.paymentsService.charge(
+            tx,
+            order.id,
+            order.payableCents,
+            now,
+          );
+
+          const updated = await tx.order.update({
+            where: { id: order.id },
+            data: {
+              status: OrderStatus.PAID,
+              paidCents: order.payableCents,
+              paidAt: now,
+              businessDate,
+              releaseAt,
+              pickupCode,
+              estimatedReadyAt,
+              events: {
+                create: {
+                  fromStatus: OrderStatus.PENDING_PAYMENT,
+                  toStatus: OrderStatus.PAID,
+                  actorType: ActorType.CUSTOMER,
+                  actorId: memberId,
+                  note: '支付成功',
+                },
+              },
+            },
+            include: {
+              items: true,
+              events: { orderBy: { createdAt: 'asc' } },
+            },
+          });
+
+          return toOrderPublic(updated);
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          attempt === 0
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new AppError(
+      ERROR_CODES.INTERNAL_ERROR,
+      '支付处理失败，请稍后重试',
+      500,
+    );
+  }
+
+  async cancel(
+    orderId: string,
+    memberId: string,
+    dto: CancelOrderDto,
+  ): Promise<OrderPublic> {
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const changed = await tx.order.updateMany({
+        where: {
+          id: orderId,
+          memberId,
+          status: OrderStatus.PENDING_PAYMENT,
+        },
+        data: {
+          status: OrderStatus.CANCELED,
+          canceledAt: now,
+          cancelReason: dto.reason?.trim() || '用户取消订单',
+        },
+      });
+
+      if (changed.count === 0) {
+        const current = await tx.order.findFirst({
+          where: { id: orderId, memberId },
+          select: { status: true },
+        });
+        if (!current) {
+          throw new AppError(ERROR_CODES.NOT_FOUND, '订单不存在', 404);
+        }
+        throw new AppError(
+          ERROR_CODES.ORDER_INVALID_STATUS,
+          '当前订单不可取消',
+          409,
+          { status: current.status },
+        );
+      }
+
+      await tx.orderEvent.create({
+        data: {
+          orderId,
+          fromStatus: OrderStatus.PENDING_PAYMENT,
+          toStatus: OrderStatus.CANCELED,
+          actorType: ActorType.CUSTOMER,
+          actorId: memberId,
+          note: dto.reason?.trim() || '用户取消订单',
+        },
+      });
+
+      const updated = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: {
+          items: true,
+          events: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      return toOrderPublic(updated);
+    });
+  }
+
+  private async nextPickupSequence(
+    tx: Prisma.TransactionClient,
+    storeId: string,
+    businessDate: Date,
+  ): Promise<number> {
+    const dateKey = businessDate.toISOString().slice(0, 10);
+    const rows = await tx.$queryRaw<Array<{ last_seq: number }>>`
+      INSERT INTO pickup_counters (store_id, business_date, last_seq)
+      VALUES (${storeId}::uuid, ${dateKey}::date, 1)
+      ON CONFLICT (store_id, business_date)
+      DO UPDATE SET last_seq = pickup_counters.last_seq + 1
+      RETURNING last_seq
+    `;
+
+    if (!rows.length) {
+      throw new AppError(
+        ERROR_CODES.INTERNAL_ERROR,
+        '取餐码生成失败，请稍后重试',
+        500,
+      );
+    }
+
+    return rows[0].last_seq;
   }
 
   private readIdempotencyKey(raw: string | undefined): string {
