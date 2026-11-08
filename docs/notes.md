@@ -108,7 +108,8 @@
 - 取餐码按 `store_id + business_date` 重置；立即单跨日支付会落到支付日号段，预约单落到取餐日号段。跨日/跨号段 currently 没有 e2e，D13 补。
 - 支付成功写 `PAID` 事件，立即单直接进待接单；预约单仍为 `PAID`，到 `release_at` 才由 D10 任务释放。过期订单当前只拒绝支付，不自动改状态，D10 补 `CANCELED`。
 - 取消只允许 `PENDING_PAYMENT`；已支付订单要走退款流程，D8 不提供直接取消。
-- 顾客端 `Idempotency-Key` 存在 `tocoffee.checkout.key`，按结算会话生成；待支付订单 id 存 `tocoffee.checkout.pendingOrder`，刷新结算页可继续支付。支付成功/过期后才清 key 和 pending。
+- 顾客端 `Idempotency-Key` 存在 `tocoffee.checkout.key`，按结算会话生成；待支付订单 id 存 `tocoffee.checkout.pendingOrder`，刷新结算页可继续支付。
+- key 与结算内容签名绑定（`tocoffee.checkout.signature`）：签名包含购物车行、取餐方式/预约时间、联系人/手机号/备注。签名变化时取消旧待支付订单、清 pending、换新 key；提交前再比对一次签名兜底。支付成功、过期、旧订单已支付/已取消/拉取失败，都会开启新 key 会话。
 - 顾客端登录用手机号+验证码，`AUTH_DEV_MODE=true` 时自动填 `devCode`；token 存 `tocoffee.customer.token`。H5 与小程序都走同一套 `uni.request`。
 - H5 原生导航栏已提供标题/返回，checkout/result 不再自绘 topbar，避免双标题。
 - **H5 dev watcher 坑**：编辑 `apps/passenger/src` 时 Vite 可能监听编辑器临时目录 `.tmpdir` 并报 `EBUSY ... .tmpdir/*.tmp` 崩溃；当前用 `npm run build:h5` + `npx vite preview --outDir dist/build/h5` 做视觉验收。后续可加 `server.watch.ignored: ['**/*.tmpdir/**']` 或换编辑器原子写策略。

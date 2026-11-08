@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { ApiClientError } from '@/api/client'
-import { createOrder, fetchOrder, payOrder, quoteOrder } from '@/api/orders'
+import { cancelOrder, createOrder, fetchOrder, payOrder, quoteOrder } from '@/api/orders'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 import { useShopStore } from '@/stores/store'
@@ -11,6 +11,7 @@ import { buildPickupSlots, formatShanghaiTime, type PickupSlot } from '@/utils/d
 import { formatPrice } from '@/utils/money'
 
 const CHECKOUT_KEY = 'tocoffee.checkout.key'
+const CHECKOUT_SIGNATURE_KEY = 'tocoffee.checkout.signature'
 const PENDING_ORDER_KEY = 'tocoffee.checkout.pendingOrder'
 
 const shop = useShopStore()
@@ -31,6 +32,7 @@ const remark = ref('')
 const pendingOrderId = ref('')
 const pendingOrder = ref<Order | null>(null)
 const idempotencyKey = ref(readOrCreateKey())
+const sessionSignature = ref(readSessionSignature())
 const initialized = ref(false)
 let quoteRequestId = 0
 
@@ -105,12 +107,27 @@ async function initialize(): Promise<void> {
           pendingOrder.value = order
           pickupTimeType.value = order.pickupTimeType
         } else {
+          // 上一笔已支付/已取消：重新进入结算就是新会话，不能复用它的 key。
           clearPendingOrder()
+          resetCheckoutKey()
+          clearSessionSignature()
         }
       } catch {
         clearPendingOrder()
+        resetCheckoutKey()
+        clearSessionSignature()
       }
     }
+
+    const currentSignature = buildSessionSignature()
+    if (pendingOrder.value) {
+      // 旧版本没有签名，或购物车/取餐/备注已变化：不能复用旧订单，也不能复用旧 key。
+      if (!sessionSignature.value || sessionSignature.value !== currentSignature) {
+        clearPendingOrder()
+        resetCheckoutKey()
+      }
+    }
+    setSessionSignature(currentSignature)
 
     initialized.value = true
     await refreshQuote()
@@ -150,6 +167,53 @@ function resetCheckoutKey(): void {
     // ignore
   }
   idempotencyKey.value = readOrCreateKey()
+}
+
+function buildSessionSignature(): string {
+  return JSON.stringify({
+    items: cart.items
+      .map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        optionIds: [...item.optionIds].sort(),
+      }))
+      .sort((a, b) =>
+        `${a.productId}:${a.optionIds.join(',')}`.localeCompare(
+          `${b.productId}:${b.optionIds.join(',')}`,
+        ),
+      ),
+    pickupTimeType: pickupTimeType.value,
+    scheduledAt: pickupTimeType.value === 'SCHEDULED' ? selectedSlot.value : '',
+    contactName: contactName.value.trim(),
+    contactPhone: contactPhone.value.trim(),
+    remark: remark.value.trim(),
+  })
+}
+
+function readSessionSignature(): string {
+  try {
+    return (uni.getStorageSync(CHECKOUT_SIGNATURE_KEY) as string) || ''
+  } catch {
+    return ''
+  }
+}
+
+function setSessionSignature(signature = buildSessionSignature()): void {
+  sessionSignature.value = signature
+  try {
+    uni.setStorageSync(CHECKOUT_SIGNATURE_KEY, signature)
+  } catch {
+    // storage is best effort
+  }
+}
+
+function clearSessionSignature(): void {
+  sessionSignature.value = ''
+  try {
+    uni.removeStorageSync(CHECKOUT_SIGNATURE_KEY)
+  } catch {
+    // ignore
+  }
 }
 
 function readPendingOrder(): string {
@@ -216,8 +280,24 @@ function selectSlot(slot: PickupSlot): void {
   void refreshQuote()
 }
 
+function startNewCheckoutSession(signature = buildSessionSignature()): void {
+  if (pendingOrder.value) {
+    const staleOrderId = pendingOrder.value.id
+    clearPendingOrder()
+    void cancelOrder(staleOrderId).catch(() => {
+      // 取消失败也不阻塞新结算；旧单会在 15 分钟后自然过期。
+    })
+  }
+  resetCheckoutKey()
+  setSessionSignature(signature)
+}
+
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
+  // 兜底：即使 watcher 没触发，提交前也绝不能拿旧 key 去提交新内容。
+  if (buildSessionSignature() !== sessionSignature.value) {
+    startNewCheckoutSession()
+  }
   submitting.value = true
   error.value = ''
 
@@ -239,6 +319,7 @@ async function submit(): Promise<void> {
       pendingOrderId.value = order.id
       pendingOrder.value = order
       uni.setStorageSync(PENDING_ORDER_KEY, order.id)
+      setSessionSignature()
     }
 
     if (order.status === 'PENDING_PAYMENT') {
@@ -252,6 +333,7 @@ async function submit(): Promise<void> {
     cart.clear()
     clearPendingOrder()
     resetCheckoutKey()
+    clearSessionSignature()
     uni.redirectTo({ url: `/pages/order/result?id=${order.id}` })
   } catch (err) {
     if (err instanceof ApiClientError) {
@@ -266,6 +348,8 @@ async function submit(): Promise<void> {
       } else if (err.code === 'ORDER_EXPIRED' || err.code === 'ORDER_NOT_PAYABLE') {
         clearPendingOrder()
         resetCheckoutKey()
+        clearSessionSignature()
+        setSessionSignature()
         error.value = '上一笔待支付订单已失效，已为你重新创建结算。'
       } else if (err.statusCode === 401) {
         auth.logout()
@@ -280,6 +364,17 @@ async function submit(): Promise<void> {
     submitting.value = false
   }
 }
+
+watch(
+  [pickupTimeType, selectedSlot, contactName, contactPhone, remark],
+  () => {
+    if (!initialized.value || submitting.value) return
+    const signature = buildSessionSignature()
+    if (signature === sessionSignature.value) return
+
+    startNewCheckoutSession(signature)
+  },
+)
 
 function retry(): void {
   if (!quote.value) {
