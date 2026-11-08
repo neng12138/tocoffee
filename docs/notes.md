@@ -87,3 +87,15 @@
 - e2e 为了不依赖当前营业时间，`beforeAll` 把 seed 门店改成 00:00–23:59，`afterAll` 恢复；跑 e2e 时不要同时用手工验收营业时间边界。
 - 已知偏差：生椰拿铁默认椰奶、茶饮默认冰仍未按商品覆盖；D6 只保证金额/规格校验，D7 在结算/规格层处理，避免现在加表。
 - D6 只做后端 quote；顾客端结算页、`POST /api/orders`、幂等和支付超时留到 D7。
+
+## 2026-11-08 D7 创建订单
+
+- `POST /api/orders` 必须带 `Idempotency-Key`（8–64 位字母/数字/下划线/连字符）；按 `(memberId, key)` 先查后建，重复请求返回同一个订单对象。并发下靠 P2002 回查兜底。
+- 订单号 `T + yyMMddHHmmss + 4 位随机`，在事务外生成；P2002 若不是幂等键重复，就按订单号碰撞重试，最多 3 次。
+- `expectedTotalCents` 与本次 `payableCents` 不一致返回 409 `PRICE_CHANGED`，`details.quote` 是新报价；前端应提示“价格有变化”并刷新结算页。
+- **临时偏差**：立即单 `businessDate` 在创建时先取创建日（设计原本要求支付日）。D8 支付接口必须用 `paid_at` 重算；否则跨日 23:59 下单、00:01 支付会记错营业日。
+- **临时偏差**：预约单 `releaseAt` 在创建时按 `now` 计算，D8 支付后必须用 `paid_at` 再计算 `max(paid_at, scheduledAt - max(10, prep+2))`。新建单未支付时 `releasedAt` 仍为 null。
+- `expiresAt` 在 D7 只是落库字段；D8 支付必须校验“仅本人、仅 PENDING_PAYMENT、未过期”，D10 再补自动取消/释放任务。
+- e2e 配置改为 `fileParallelism: false`：测试共用一个 PostgreSQL，多个 suite 同时改门店营业时间会互相踩；顺序执行后 28 个 e2e 稳定通过。
+- D7 只做了 API，没有做顾客端结算页；「去结算」仍是占位。D8 做支付时一起接结算页，避免先做一半再改。
+- 新增测试会员 `13900000041`；afterAll 只删该会员的订单，不删会员，重复跑不会主键冲突，但测试库会累积会员。

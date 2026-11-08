@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-D1–D6 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传，以及服务端 quote 定价与金额单测。
+D1–D7 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传、服务端 quote 定价与金额单测，以及创建待支付订单（幂等 / 价格变化检测 / 预约释放时间）。
 小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
@@ -131,7 +131,39 @@ npm run start:dev
 - `pickupTimeType=SCHEDULED`：必须带 `scheduledAt`，按上海时区 15 分钟粒度，最早当前 +15 分钟，最晚当前 +2 小时，且必须在营业时间内；`estimatedReadyAt = scheduledAt`。
 - 金额字段：`itemsAmountCents`、`discountCents`、`payableCents`，全部整数分；D6 暂无优惠，`discountCents=0`。
 - 错误：`VALIDATION_ERROR` / `SPEC_REQUIRED` 400，`PRODUCT_UNAVAILABLE` / `STORE_CLOSED` 409，未登录 401。
-- D6 只做服务端报价与单测，结算页和下单仍按 D7–D8 推进；本地手工冒烟 2 杯中杯热生椰拿铁 = 4400 分。
+- D6 只做服务端报价与单测；D7 已提供创建订单 API，结算页与支付在 D8 接入。本地手工冒烟 2 杯中杯热生椰拿铁 = 4400 分。
+
+### 2.4 D7 创建订单
+
+`POST /api/orders`，需要顾客 Bearer token；请求体与 quote 相同，另加 `expectedTotalCents`，可选 `remark`、`contactName`、`contactPhone`。
+
+```json
+{
+  "items": [
+    {
+      "productId": "00000000-0000-4000-8000-000000000201",
+      "quantity": 2,
+      "optionIds": [
+        "00000000-0000-4000-8000-000000000402",
+        "00000000-0000-4000-8000-000000000403",
+        "00000000-0000-4000-8000-000000000407",
+        "00000000-0000-4000-8000-000000000410",
+        "00000000-0000-4000-8000-000000000413"
+      ]
+    }
+  ],
+  "pickupTimeType": "ASAP",
+  "expectedTotalCents": 5800,
+  "remark": "少冰"
+}
+```
+
+- Header `Idempotency-Key` 必填，8–64 位字母、数字、下划线或连字符；同一会员同一 key 重复提交返回原订单，不会重复建单。
+- 服务端重新 quote；`expectedTotalCents` 与 `payableCents` 不一致返回 409 `PRICE_CHANGED`，`details.quote` 是新报价。
+- 成功返回 201，状态 `PENDING_PAYMENT`，含 `orderNo`、`businessDate`、`expiresAt`（15 分钟）、预约单 `releaseAt`、items 快照与 events。
+- 订单号格式 `T + yyMMddHHmmss + 4 位随机`；预约单 `businessDate` 取取餐日，`releaseAt = scheduledAt - max(10, prepMinutes + 2) 分钟`（不早于创建时间）。
+- 立即单当前先把 `businessDate` 记为创建日；D8 支付时若跨日，必须按支付日修正。15 分钟超时的支付拦截也在 D8。
+- D7 只做创建订单 API；结算页、支付、订单查询和取消在 D8。
 
 ### 3. 启动管理端
 
