@@ -6,6 +6,7 @@ import { PrismaModule } from './database/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { OrdersModule } from './modules/orders/orders.module.js';
 import { StoresModule } from './modules/stores/stores.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 
@@ -23,6 +24,7 @@ import { UploadsModule } from './modules/uploads/uploads.module.js';
     AuthModule,
     StoresModule,
     CatalogModule,
+    OrdersModule,
     UploadsModule,
   ],
 })

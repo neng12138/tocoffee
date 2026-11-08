@@ -35,7 +35,7 @@
 - 密码哈希用 `bcryptjs@3.0.3` 替代原生 `bcrypt`，避免 Windows 原生编译；cost 10。
 - `package.json#prisma.seed` 在 6.19.3 可用，但 Prisma 7 会移除并提示弃用；升级 Prisma 时改成 `prisma.config.ts`。
 - seed 用固定 UUID + upsert，可重复执行；当前稳定计数：stores=1、staff=1、categories=5、products=12、specGroups=5、specOptions=15、productSpecGroups=47。
-- 茶饮默认冰、生椰拿铁默认椰奶属于「按商品覆盖默认规格」，当前未入库；D4 前端选择规格或 D6 定价层按商品处理，避免在通用规格组里塞商品特例。
+- 茶饮默认冰、生椰拿铁默认椰奶属于「按商品覆盖默认规格」，当前未入库；D4 前端选择规格，D7 结算/规格层再按商品处理，避免在通用规格组里塞商品特例。
 - seed 图片源文件在 `apps/api/assets/seed/`，启动时复制到 `apps/api/uploads/seed/`；`uploads/` 被 gitignore，图片 URL 为 `${PUBLIC_BASE_URL}/uploads/seed/...`，静态托管尚未接入（D3/D5 补）。
 - seed 密码：`owner / admin123`；仅演示用，P1 上线前必须改。
 
@@ -56,7 +56,7 @@
 - API 静态图片：`main.ts` 改为 `NestFactory.create<NestExpressApplication>`，挂载 `process.cwd()/uploads` 到 `/uploads/`；菜单图片 URL 由 `PUBLIC_BASE_URL` 拼接，H5 走 Vite 代理，小程序开发期直连 `http://127.0.0.1:3000`。生产要换成同域 HTTPS 域名并把小程序合法域名加白。
 - 顾客端 API base：H5 用相对 `/api`，小程序用 `http://127.0.0.1:3000/api`；`uni.request` 类型不支持 PATCH，客户端只允许 GET/POST/PUT/DELETE。
 - 购物车只存本地：key `tocoffee.cart.v1`，按 `storeId` 隔离，同商品同规格用 `productId + sortedOptionIds` 合并，单规格数量上限 20。D6 下单前必须由服务端 quote 重算价格，不能信任本地 unitPrice。
-- 规格弹层对必选组没有默认项时自动选第一个；多选组按 `maxSelect` 截断，减少“加购按钮不可用”的困惑。商品特例（茶饮默认冰、生椰拿铁默认椰奶）仍未入库，D6 定价层按商品覆盖。
+- 规格弹层对必选组没有默认项时自动选第一个；多选组按 `maxSelect` 截断，减少“加购按钮不可用”的困惑。商品特例（茶饮默认冰、生椰拿铁默认椰奶）仍未入库，D7 结算/规格层按商品覆盖。
 - 小程序商品图/logo 使用本地 `static`，商品图 URL 指向本机 API；微信开发者工具需保持 `urlCheck=false`（模板默认）。
 - Chrome headless 有最小视口 512px，直接 `--window-size=390` 截图会被裁；用 CDP `Emulation.setDeviceMetricsOverride` 设 390×844 后页面正常，确认不是布局 bug。
 - H5 验收：390×844 下首页、菜单、规格弹层、购物车渲染正常；点击加购后购物车出现，刷新后能从 storage 恢复；控制台 0 error。
@@ -75,3 +75,15 @@
 - `el-switch @change` 参数类型是 `string | number | boolean`，回调参数不能只写 boolean。
 - 管理端主 chunk 869.65 kB 是 Element Plus 全量引入；P0 接受，D14 再评估按需引入。
 - 上传只落本地磁盘 `apps/api/uploads/products/YYYY/MM/`，`uploads/` 不进 git；换机器/清目录会丢用户上传图，P1 换对象存储。
+
+## 2026-11-08 D6 报价与定价
+
+- 定价做成纯函数 `PricingService.quote(input)`，不碰数据库；`OrdersService` 只负责按门店查商品/规格、统计队列并映射。单测固定 `now`，不依赖 Nest 或 PostgreSQL。
+- quote 必须带顾客 token；报价不锁库存、不创建订单、不生成取餐码，用户可以反复报价。
+- `queueCount` = `status in [PAID, ACCEPTED]` 且（立即单或 `releasedAt` 非空）；未支付单不占队列。预约单释放前不计入，释放后才影响立即单 ETA。
+- 预约单 quote 的 `estimatedReadyAt=scheduledAt`，但 `release_at`/`released_at` 不在这里写；D7 下单时按 `scheduled_at - max(10, prep+2)` 生成。
+- 15 分钟粒度同时校验 UTC 秒/毫秒为 0 和上海本地分钟 %15=0；上海时区偏移是 15 分钟的整数倍，所以两者等价。
+- 错误映射：`VALIDATION_ERROR`/`SPEC_REQUIRED` 400，`PRODUCT_UNAVAILABLE`/`STORE_CLOSED` 409。缺规格组/必选选项归 `SPEC_REQUIRED`，商品售罄/下架/不存在归 `PRODUCT_UNAVAILABLE`。
+- e2e 为了不依赖当前营业时间，`beforeAll` 把 seed 门店改成 00:00–23:59，`afterAll` 恢复；跑 e2e 时不要同时用手工验收营业时间边界。
+- 已知偏差：生椰拿铁默认椰奶、茶饮默认冰仍未按商品覆盖；D6 只保证金额/规格校验，D7 在结算/规格层处理，避免现在加表。
+- D6 只做后端 quote；顾客端结算页、`POST /api/orders`、幂等和支付超时留到 D7。

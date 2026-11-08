@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-D1–D5 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车，以及管理端登录、分类/商品/规格 CRUD 和图片上传。
+D1–D6 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传，以及服务端 quote 定价与金额单测。
 小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
@@ -104,6 +104,34 @@ npm run start:dev
 | POST | `/api/admin/uploads` | 上传商品图，jpg/png/webp，≤2MB |
 
 归档不会物理删除：分类变 `DISABLED`，商品变 `OFF_SHELF`；顾客端只展示启用分类与在售/售罄商品。
+
+### 2.3 D6 报价接口
+
+`POST /api/orders/quote`，需要顾客 Bearer token。服务端按商品当前价格和规格加价重算，不信任客户端金额。
+
+```json
+{
+  "items": [
+    {
+      "productId": "00000000-0000-4000-8000-000000000201",
+      "quantity": 2,
+      "optionIds": [
+        "00000000-0000-4000-8000-000000000401",
+        "00000000-0000-4000-8000-000000000403",
+        "00000000-0000-4000-8000-000000000407",
+        "00000000-0000-4000-8000-000000000410"
+      ]
+    }
+  ],
+  "pickupTimeType": "ASAP"
+}
+```
+
+- `pickupTimeType=ASAP`：`estimatedReadyAt = now + prepMinutes + queueCount × perOrderMinutes`，最多 30 分钟；`queueCount` 只算已支付/制作中的立即单和已释放的预约单。
+- `pickupTimeType=SCHEDULED`：必须带 `scheduledAt`，按上海时区 15 分钟粒度，最早当前 +15 分钟，最晚当前 +2 小时，且必须在营业时间内；`estimatedReadyAt = scheduledAt`。
+- 金额字段：`itemsAmountCents`、`discountCents`、`payableCents`，全部整数分；D6 暂无优惠，`discountCents=0`。
+- 错误：`VALIDATION_ERROR` / `SPEC_REQUIRED` 400，`PRODUCT_UNAVAILABLE` / `STORE_CLOSED` 409，未登录 401。
+- D6 只做服务端报价与单测，结算页和下单仍按 D7–D8 推进；本地手工冒烟 2 杯中杯热生椰拿铁 = 4400 分。
 
 ### 3. 启动管理端
 
