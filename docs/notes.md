@@ -127,3 +127,17 @@
 - 管理端路由 `/orders` 已接侧边栏与工作台快捷入口；`OrderBoardView.vue` 的订单卡点击打开 Drawer，操作按钮 `@click.stop` 防止冒泡。
 - Element Plus 全量引入导致主 chunk 约 870 kB；D14 再评估按需引入。
 - 已知风险：预约释放/超时取消/NO_SHOW 任务尚未实现（D10），所以当前 `SCHEDULED` 订单不会自动进入 `ACTIVE`。
+
+## 2026-11-11 D10 定时任务
+
+- 使用 `@nestjs/schedule@12.0.3`；先试 `^6.0.0` 报 ERESOLVE，6.x 的 peer 只支持 Nest 10/11，和当前 Nest 12 不兼容。
+- `JobsScheduler` 随 API 进程注册：释放/超时任务每分钟，`NO_SHOW` 用 `59 23 * * *`，时区 `Asia/Shanghai`。任务异常只记 Logger，不抛到主进程。
+- 三个 job 都暴露 `run(now = new Date())`，测试注入固定时间；每批 200 单，循环到没有可处理订单为止。
+- 预约释放写 `PAID → PAID` 事件，note「预约单已释放，进入待接单」；状态不变，只是 `released_at` 从 null 变成 now。
+- 超时取消写 `PENDING_PAYMENT → CANCELED`，`cancel_reason=支付超时自动取消`；不改 `paid_cents`。
+- `NO_SHOW` 只处理 `READY`，写 `no_show_at` 和 `SYSTEM` 事件；不自动退款，后续仍可从管理端拒单退款。
+- `business_date < today` 的 `READY` 总是补处理；`business_date = today` 必须等到上海 23:59；未来日期不动。这样 API 整晚停机也不会把旧订单永久卡在 `READY`。
+- 条件更新是幂等核心：多实例同时扫到同一单，只有一个 `updateMany` 能命中；没命中的实例直接跳过，不会重复写事件。
+- 开发库首次启动会清掉历史遗留的过期待支付单/旧 `READY` 单，这是预期行为；不是数据丢失。
+- D10 验证：24 单测、52 e2e（8 files），其中 `jobs.e2e-spec.ts` 5 个；`npm run lint` 93 files 0/0。
+- 已知边界：`NO_SHOW` 依赖 API 在 23:59 存活；如果跨天停机，会在下一次 23:59 补处理前一天，延迟一天但不遗漏。P1 可改为启动时立即补跑一次。
