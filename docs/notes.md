@@ -173,3 +173,14 @@
 - 新增 `order.mapper.spec.ts` 覆盖 `businessDate` 的 `YYYY-MM-DD` 和日期 ISO 化；`businessDate` 在库里是 UTC 零点日期，不能直接用上海本地 `Date` 格式化。
 - D13 验证：API 31 单测、65 e2e（10 files）；本轮没有发现需要改业务代码的阻塞性 bug，主要是补回归覆盖。
 - 已知风险：自动化覆盖 API 全链路，但小程序真机、375px、提示音仍留 D14 人工走查。
+
+## 2026-11-11 D14 双端 UI 验收
+
+- H5 `npm run dev:h5` 在编辑器写文件时反复 `EBUSY ... .tmpdir/*.tmp`，D14 验收统一用 `npm run build:h5` + `npx vite preview --outDir dist/build/h5`；不要因为 watcher 退出就判断页面有 bug。
+- 375px 检查用 CDP `Emulation.setDeviceMetricsOverride` 或真实窗口；`scrollWidth === innerWidth` 才是无横向滚动。页面刚加载时偶见宽度 400 的 `uni-*` 内部节点，稳定后消失，不是布局溢出。
+- 不要直接写 H5 `localStorage` 模拟 `uni.setStorageSync`：uni-app H5 存储有包装格式，直接写会导致登录态/购物车读取失败；验收登录要走真实验证码 UI。
+- favicon 用 `apps/passenger/src/static/favicon.png` 并在 `index.html` 声明；小程序端不需要该文件。
+- 预约单验收可临时把门店营业时间改为 00:00–23:59 造 22:30 单，测完必须恢复 08:00–20:00；D14 留下 1 笔 `A067` 预约测试单，演示前可清库重跑 seed。
+- 微信开发者工具构建产物 `project.config.json` 的 AppID 每次构建可能重置为 `touristappid`；只改生成目录，不把测试号写进 `manifest.json`。
+- D14 验证：API 31 单测、65 e2e（10 files）、lint 108 files 0/0；管理端 build、顾客端 type-check、H5/小程序构建通过。
+- 已知非阻塞：管理端 Element Plus 全量引入主 chunk 约 870 kB，P0 不处理；后续再按需引入/自动导入。
