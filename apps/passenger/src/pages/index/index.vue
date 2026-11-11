@@ -24,6 +24,10 @@ function goMenu(productId?: string): void {
   uni.navigateTo({ url: `/pages/menu/menu${suffix}` })
 }
 
+function goOrders(): void {
+  uni.navigateTo({ url: '/pages/order/list' })
+}
+
 function onImageError(product: Product): void {
   imageErrors.value = { ...imageErrors.value, [product.id]: true }
 }
@@ -65,6 +69,14 @@ function retry(): void {
 
     <template v-else>
       <StoreCard v-if="shop.store" :store="shop.store" />
+
+      <view class="order-entry" @click="goOrders">
+        <view class="order-entry-copy">
+          <text class="order-entry-title">我的订单</text>
+          <text class="order-entry-desc">查看进行中、历史订单和取餐码</text>
+        </view>
+        <text class="order-entry-arrow">→</text>
+      </view>
 
       <view class="quick-row">
         <view class="quick-item">
@@ -263,6 +275,39 @@ function retry(): void {
   font-size: 24rpx;
   background: #efe4d8;
   border-radius: 999rpx;
+}
+
+.order-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 28rpx;
+  margin: 20rpx 4rpx 0;
+  background: rgba(255, 253, 249, 0.72);
+  border: 1rpx solid #e7ddcf;
+  border-radius: 22rpx;
+}
+
+.order-entry-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.order-entry-title {
+  color: #3a2c20;
+  font-size: 25rpx;
+  font-weight: 600;
+}
+
+.order-entry-desc {
+  color: #9b8a78;
+  font-size: 21rpx;
+}
+
+.order-entry-arrow {
+  color: #8b6b4d;
+  font-size: 30rpx;
 }
 
 .quick-row {

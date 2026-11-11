@@ -1,5 +1,12 @@
 export type PickupTimeType = 'ASAP' | 'SCHEDULED'
 
+export type OrderListTab =
+  | 'ALL'
+  | 'PENDING_PAYMENT'
+  | 'ACTIVE'
+  | 'FINISHED'
+  | 'CANCELED'
+
 export type OrderStatus =
   | 'PENDING_PAYMENT'
   | 'PAID'

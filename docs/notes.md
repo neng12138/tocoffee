@@ -153,3 +153,14 @@
 - 管理端工作台和门店设置均复用 `StaffJwtGuard`，不要忘记 `DashboardModule`/`StoresModule` imports `AuthModule`，否则 `JwtService` 解析失败。
 - D11 验证：API 29 单测、60 e2e（9 files）、lint 106 files 0/0；管理端 type-check/build 通过；工作台/门店设置 CDP 1440×900 验收 0 error。
 - 已知风险：退款跨日只冲减退款完成日；历史待支付单不进入工作台，但会由 D10 过期任务逐步清理；Element Plus 主 chunk 约 870 kB，D14 再评估按需加载。
+
+## 2026-11-11 D12 订单列表与详情
+
+- Tab 口径由后端 `TAB_STATUSES` 统一：`ACTIVE=PAID/ACCEPTED/READY`、`FINISHED=COMPLETED/NO_SHOW`、`CANCELED=CANCELED/REFUNDING/REFUNDED`；前端只传 `tab`，不要各自维护状态集合。
+- 订单列表和详情共用 `GET /api/orders` / `GET /api/orders/:id`，都按会员隔离；`tab` 与 `status` 可同时传，`status` 精确筛选优先叠加。
+- 详情轮询只对 `PENDING_PAYMENT/PAID/ACCEPTED/READY` 开启；每 5 秒一次，`onHide/onUnmounted` 停止，`onShow` 恢复；状态变化才 toast，避免重复提示。
+- 轮询实现是「每次拉取后清掉旧 timer 再按新状态重建」，不要在定时器里叠加 setInterval。
+- 「再来一单」按订单项 `specSnapshot` 还原 `optionIds`，再走购物车合并逻辑；下架/售罄商品跳过并提示，不阻塞其他商品。
+- 订单详情门店信息通过 `GET /api/store` 获取；门店名/地址/电话失败不阻塞订单主流程，只静默降级。
+- D12 验证：API 29 单测、61 e2e（9 files）、lint 106 files 0/0；顾客端 type-check、H5/小程序构建通过；390×844 CDP 验证 5 Tab、空态、详情、接单后 5 秒轮询自动变「制作中」。
+- 已知小问题：H5 `favicon.ico` 404；小程序只验证构建产物，D13 再做开发者工具/真机交互走查。

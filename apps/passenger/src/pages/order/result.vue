@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { computed, onUnmounted, ref } from 'vue'
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
 import { ApiClientError } from '@/api/client'
+import { fetchStore } from '@/api/catalog'
 import { fetchOrder, payOrder } from '@/api/orders'
+import { useReorder } from '@/composables/useReorder'
 import { useAuthStore } from '@/stores/auth'
-import type { Order, OrderStatus } from '@/types/order'
+import type { StoreInfo } from '@/types/catalog'
+import type { Order, OrderEvent, OrderStatus } from '@/types/order'
 import { formatShanghaiDateTime, formatShanghaiTime } from '@/utils/datetime'
 import { formatPrice } from '@/utils/money'
 
@@ -20,13 +23,35 @@ const STATUS_META: Record<OrderStatus, { title: string; desc: string; tone: stri
   REFUNDED: { title: '已退款', desc: '退款已完成。', tone: 'muted' },
 }
 
+const EVENT_LABELS: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: '订单已创建',
+  PAID: '支付成功',
+  ACCEPTED: '门店已接单',
+  READY: '咖啡已出杯',
+  COMPLETED: '订单已完成',
+  NO_SHOW: '超时未取，订单关闭',
+  CANCELED: '订单已取消',
+  REFUNDING: '退款处理中',
+  REFUNDED: '退款已完成',
+}
+
+const POLLING_STATUSES = new Set<OrderStatus>([
+  'PENDING_PAYMENT',
+  'PAID',
+  'ACCEPTED',
+  'READY',
+])
+
 const auth = useAuthStore()
+const { reordering, reorder } = useReorder()
+const store = ref<StoreInfo | null>(null)
 const orderId = ref('')
 const order = ref<Order | null>(null)
 const loading = ref(true)
 const paying = ref(false)
 const error = ref('')
 let loaded = false
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const meta = computed(() => (order.value ? STATUS_META[order.value.status] : null))
 const isPending = computed(() => order.value?.status === 'PENDING_PAYMENT')
@@ -39,6 +64,7 @@ const readyLabel = computed(() => {
 
 onLoad((query) => {
   orderId.value = typeof query?.id === 'string' ? query.id : ''
+  void loadStore()
 })
 
 onShow(() => {
@@ -59,13 +85,51 @@ onShow(() => {
   }
 })
 
+onHide(() => {
+  stopPolling()
+})
+
+onUnmounted(() => {
+  stopPolling()
+})
+
+async function loadStore(): Promise<void> {
+  try {
+    store.value = await fetchStore()
+  } catch {
+    // 门店信息失败不阻塞订单主流程。
+  }
+}
+
+function stopPolling(): void {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function syncPolling(): void {
+  stopPolling()
+  if (!order.value || !POLLING_STATUSES.has(order.value.status)) return
+  pollTimer = setInterval(() => {
+    void loadOrder(true)
+  }, 5000)
+}
+
 async function loadOrder(silent = false): Promise<void> {
   if (!silent) loading.value = true
   error.value = ''
   try {
-    order.value = await fetchOrder(orderId.value)
+    const previousStatus = order.value?.status
+    const next = await fetchOrder(orderId.value)
+    order.value = next
+    if (silent && previousStatus && previousStatus !== next.status) {
+      uni.showToast({ title: STATUS_META[next.status].title, icon: 'none' })
+    }
+    syncPolling()
   } catch (err) {
     if (err instanceof ApiClientError && err.statusCode === 401) {
+      stopPolling()
       auth.logout()
       redirectToLogin()
       return
@@ -84,6 +148,7 @@ async function pay(): Promise<void> {
   error.value = ''
   try {
     order.value = await payOrder(order.value.id)
+    syncPolling()
     uni.showToast({ title: '支付成功', icon: 'success' })
   } catch (err) {
     error.value = err instanceof ApiClientError ? err.message : '支付失败，请稍后再试'
@@ -106,6 +171,26 @@ function goHome(): void {
 
 function goMenu(): void {
   uni.redirectTo({ url: '/pages/menu/menu' })
+}
+
+function goOrders(): void {
+  uni.navigateTo({ url: '/pages/order/list' })
+}
+
+async function reorderOrder(): Promise<void> {
+  if (!order.value) return
+  const added = await reorder(order.value)
+  if (added) goMenu()
+}
+
+function callStore(): void {
+  if (!store.value?.phone) return
+  uni.makePhoneCall({ phoneNumber: store.value.phone })
+}
+
+function eventTitle(event: OrderEvent): string {
+  if (event.fromStatus === 'PAID' && event.toStatus === 'PAID') return '预约已释放'
+  return EVENT_LABELS[event.toStatus]
 }
 </script>
 
@@ -152,7 +237,15 @@ function goMenu(): void {
         </view>
         <view class="info-row">
           <text class="info-label">门店</text>
-          <text class="info-value">ToCoffee 示例店</text>
+          <text class="info-value">{{ store?.name || 'ToCoffee 示例店' }}</text>
+        </view>
+        <view v-if="store?.address" class="info-row">
+          <text class="info-label">地址</text>
+          <text class="info-value">{{ store.address }}</text>
+        </view>
+        <view v-if="store?.phone" class="info-row">
+          <text class="info-label">电话</text>
+          <text class="info-value info-link" @click="callStore">{{ store.phone }}</text>
         </view>
         <view class="info-row">
           <text class="info-label">方式</text>
@@ -169,6 +262,32 @@ function goMenu(): void {
         <view class="info-row">
           <text class="info-label">下单时间</text>
           <text class="info-value">{{ formatShanghaiDateTime(order.createdAt) }}</text>
+        </view>
+      </view>
+
+      <view v-if="order.events.length" class="section-card">
+        <view class="section-head">
+          <text class="section-title">订单进度</text>
+          <text class="section-meta">每 5 秒自动更新</text>
+        </view>
+        <view v-for="(event, index) in order.events" :key="event.id" class="timeline-item">
+          <view class="timeline-axis">
+            <view
+              class="timeline-dot"
+              :class="{ current: index === order.events.length - 1 }"
+            ></view>
+            <view v-if="index < order.events.length - 1" class="timeline-line"></view>
+          </view>
+          <view class="timeline-copy">
+            <text class="timeline-title">{{ eventTitle(event) }}</text>
+            <text class="timeline-time">{{ formatShanghaiDateTime(event.createdAt) }}</text>
+            <text
+              v-if="event.note && event.note !== eventTitle(event)"
+              class="timeline-note"
+            >
+              {{ event.note }}
+            </text>
+          </view>
         </view>
       </view>
 
@@ -197,7 +316,14 @@ function goMenu(): void {
       <view v-if="error" class="error-card">{{ error }}</view>
 
       <view class="actions">
-        <view class="action-secondary" @click="goMenu">再点一杯</view>
+        <view
+          class="action-secondary"
+          :class="{ 'is-loading': reordering }"
+          @click="reorderOrder"
+        >
+          {{ reordering ? '加入中…' : '再来一单' }}
+        </view>
+        <view class="action-secondary" @click="goOrders">全部订单</view>
         <view class="action-primary" @click="goHome">返回首页</view>
       </view>
     </template>
@@ -430,6 +556,74 @@ function goMenu(): void {
   font-size: 21rpx;
 }
 
+.info-link {
+  color: #6f4e37;
+  text-decoration: underline;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 16rpx;
+  min-height: 58rpx;
+}
+
+.timeline-axis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 22rpx;
+  flex-shrink: 0;
+}
+
+.timeline-dot {
+  flex-shrink: 0;
+  width: 14rpx;
+  height: 14rpx;
+  margin-top: 10rpx;
+  background: #d8c8b6;
+  border-radius: 50%;
+}
+
+.timeline-dot.current {
+  background: #2e6b4e;
+  box-shadow: 0 0 0 6rpx rgba(46, 107, 78, 0.12);
+}
+
+.timeline-line {
+  flex: 1;
+  width: 2rpx;
+  min-height: 42rpx;
+  margin-top: 6rpx;
+  background: #eadfd2;
+}
+
+.timeline-copy {
+  flex: 1;
+  padding-bottom: 20rpx;
+}
+
+.timeline-title {
+  display: block;
+  color: #3a2c20;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.timeline-time {
+  display: block;
+  margin-top: 4rpx;
+  color: #a49380;
+  font-size: 20rpx;
+}
+
+.timeline-note {
+  display: block;
+  margin-top: 4rpx;
+  color: #9a8876;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+
 .order-item {
   display: flex;
   gap: 18rpx;
@@ -526,18 +720,22 @@ function goMenu(): void {
 
 .actions {
   display: flex;
-  gap: 16rpx;
+  gap: 12rpx;
   padding: 28rpx 24rpx 0;
 }
 
 .action-secondary,
 .action-primary {
   flex: 1;
-  padding: 22rpx;
-  font-size: 26rpx;
+  padding: 20rpx 10rpx;
+  font-size: 23rpx;
   font-weight: 700;
   text-align: center;
   border-radius: 999rpx;
+}
+
+.action-secondary.is-loading {
+  opacity: 0.55;
 }
 
 .action-secondary {

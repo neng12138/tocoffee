@@ -2,7 +2,19 @@ import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { OrderStatus } from '@prisma/client';
 
+export enum OrderListTab {
+  ALL = 'ALL',
+  PENDING_PAYMENT = 'PENDING_PAYMENT',
+  ACTIVE = 'ACTIVE',
+  FINISHED = 'FINISHED',
+  CANCELED = 'CANCELED',
+}
+
 export class ListOrdersDto {
+  @IsOptional()
+  @IsEnum(OrderListTab)
+  tab?: OrderListTab;
+
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;

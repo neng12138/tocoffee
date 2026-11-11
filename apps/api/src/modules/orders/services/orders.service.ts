@@ -15,7 +15,10 @@ import type { StorePublic } from '../../stores/types/store.types.js';
 import { StoresService } from '../../stores/services/stores.service.js';
 import type { CancelOrderDto } from '../dto/cancel-order.dto.js';
 import type { CreateOrderDto } from '../dto/create-order.dto.js';
-import type { ListOrdersDto } from '../dto/list-orders.dto.js';
+import {
+  OrderListTab,
+  type ListOrdersDto,
+} from '../dto/list-orders.dto.js';
 import type { QuoteDto } from '../dto/quote.dto.js';
 import { PaymentsService } from '../../payments/services/payments.service.js';
 import {
@@ -34,6 +37,21 @@ const ORDER_EXPIRY_MINUTES = 15;
 const MAX_ASAP_READY_MINUTES = 30;
 const MAX_ORDER_NO_ATTEMPTS = 3;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
+const TAB_STATUSES: Partial<Record<OrderListTab, OrderStatus[]>> = {
+  [OrderListTab.PENDING_PAYMENT]: [OrderStatus.PENDING_PAYMENT],
+  [OrderListTab.ACTIVE]: [
+    OrderStatus.PAID,
+    OrderStatus.ACCEPTED,
+    OrderStatus.READY,
+  ],
+  [OrderListTab.FINISHED]: [OrderStatus.COMPLETED, OrderStatus.NO_SHOW],
+  [OrderListTab.CANCELED]: [
+    OrderStatus.CANCELED,
+    OrderStatus.REFUNDING,
+    OrderStatus.REFUNDED,
+  ],
+};
 
 function toBusinessDate(value: Date): Date {
   const { date } = getZonedNow(value);
@@ -204,9 +222,14 @@ export class OrdersService {
   async list(memberId: string, query: ListOrdersDto) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
+    const tabStatuses = query.tab ? TAB_STATUSES[query.tab] : undefined;
     const where: Prisma.OrderWhereInput = {
       memberId,
-      ...(query.status ? { status: query.status } : {}),
+      ...(query.status
+        ? { status: query.status }
+        : tabStatuses
+          ? { status: { in: tabStatuses } }
+          : {}),
     };
 
     const [total, orders] = await this.prisma.$transaction([

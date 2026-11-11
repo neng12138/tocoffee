@@ -3,6 +3,7 @@ import type {
   CreateOrderInput,
   Order,
   OrderList,
+  OrderListTab,
   OrderStatus,
   PickupTimeType,
   Quote,
@@ -35,6 +36,7 @@ export function fetchOrder(orderId: string): Promise<Order> {
 }
 
 export function fetchOrders(params: {
+  tab?: OrderListTab
   status?: OrderStatus
   page?: number
   pageSize?: number

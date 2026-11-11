@@ -327,4 +327,59 @@ describe('pay, query and cancel orders (e2e)', () => {
       true,
     );
   });
+
+  it('groups order list tabs by status', async () => {
+    const active = await createOrder();
+    await request(app.getHttpServer())
+      .post(`/api/orders/${active.id}/pay`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const pending = await createOrder();
+    const canceled = await createOrder();
+    await request(app.getHttpServer())
+      .post(`/api/orders/${canceled.id}/cancel`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(200);
+
+    const activeResponse = await request(app.getHttpServer())
+      .get('/api/orders?tab=ACTIVE&pageSize=100')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(
+      activeResponse.body.items.every((item: OrderBody) =>
+        ['PAID', 'ACCEPTED', 'READY'].includes(item.status),
+      ),
+    ).toBe(true);
+    expect(
+      activeResponse.body.items.some((item: OrderBody) => item.id === active.id),
+    ).toBe(true);
+
+    const pendingResponse = await request(app.getHttpServer())
+      .get('/api/orders?tab=PENDING_PAYMENT&pageSize=100')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(
+      pendingResponse.body.items.every(
+        (item: OrderBody) => item.status === 'PENDING_PAYMENT',
+      ),
+    ).toBe(true);
+    expect(
+      pendingResponse.body.items.some((item: OrderBody) => item.id === pending.id),
+    ).toBe(true);
+
+    const canceledResponse = await request(app.getHttpServer())
+      .get('/api/orders?tab=CANCELED&pageSize=100')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(
+      canceledResponse.body.items.every((item: OrderBody) =>
+        ['CANCELED', 'REFUNDING', 'REFUNDED'].includes(item.status),
+      ),
+    ).toBe(true);
+    expect(
+      canceledResponse.body.items.some((item: OrderBody) => item.id === canceled.id),
+    ).toBe(true);
+  });
 });

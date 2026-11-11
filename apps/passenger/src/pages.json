@@ -25,6 +25,14 @@
       }
     },
     {
+      "path": "pages/order/list",
+      "style": {
+        "navigationBarTitleText": "我的订单",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
+      }
+    },
+    {
       "path": "pages/order/result",
       "style": {
         "navigationBarTitleText": "订单详情"
