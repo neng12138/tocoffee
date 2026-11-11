@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-D1–D14 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传、服务端 quote 定价与金额单测、创建待支付订单（幂等 / 价格变化检测 / 预约释放时间）、mock 支付/取餐码/订单查询与取消、顾客端登录/结算/支付结果页，以及管理端订单看板（接单/出杯/确认取餐/拒单退款、预约 Tab、5 秒轮询与新单提示音）。D10 增加支付超时取消、预约单释放与打烊 `NO_SHOW` 定时任务；D11 增加管理端工作台统计与门店设置；D12 增加顾客端订单列表与详情、按状态分组、5 秒进度轮询与再来一单；D13 补齐顾客→管理端全链路 e2e 与订单映射单测；D14 完成 375px/1280px UI 走查、H5 favicon 修复、提示音手势开关与预约 Tab 验收，当前 **31 单测 / 65 e2e**。
+D1–D15 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传、服务端 quote 定价与金额单测、创建待支付订单（幂等 / 价格变化检测 / 预约释放时间）、mock 支付/取餐码/订单查询与取消、顾客端登录/结算/支付结果页，以及管理端订单看板（接单/出杯/确认取餐/拒单退款、预约 Tab、5 秒轮询与新单提示音）。D10 增加支付超时取消、预约单释放与打烊 `NO_SHOW` 定时任务；D11 增加管理端工作台统计与门店设置；D12 增加顾客端订单列表与详情、按状态分组、5 秒进度轮询与再来一单；D13 补齐顾客→管理端全链路 e2e 与订单映射单测；D14 完成 375px/1280px UI 走查、H5 favicon 修复、提示音手势开关与预约 Tab 验收；D15 在临时空库完成 `migrate deploy → seed → 全流程 dry run`，当前 **31 单测 / 65 e2e**。
 小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
@@ -283,6 +283,35 @@ npm run start:dev
 - 微信开发者工具打开 `apps/passenger/dist/dev/mp-weixin`；构建产物 AppID 使用 `wx7c9cd90fc226004b`，源码 `manifest.json` 仍保持为空，避免把本机测试号写死进仓库。
 - 已知非阻塞：管理端主 chunk 约 870 kB，原因是 Element Plus 全量引入；P0 优先功能正确，后续可改按需引入/自动导入。
 
+### 2.13 D15 空库复现与演示准备
+
+D15 使用临时 PostgreSQL 容器（主机端口 **5434**，库名 `tocoffee`）验证了完全不依赖开发库的启动路径：
+
+```powershell
+docker run -d --rm --name tocoffee-dryrun-postgres `
+  -e POSTGRES_USER=tocoffee -e POSTGRES_PASSWORD=tocoffee -e POSTGRES_DB=tocoffee `
+  -p 5434:5432 postgres:16
+
+cd apps/api
+$env:DATABASE_URL='postgresql://tocoffee:tocoffee@127.0.0.1:5434/tocoffee?schema=public'
+npx prisma migrate deploy
+npx tsx prisma/seed.ts
+
+$env:API_PORT='3001'
+$env:PUBLIC_BASE_URL='http://127.0.0.1:3001'
+npm run start:prod
+```
+
+实测结果：
+
+- `20261104083233_init` 迁移成功，seed 输出 `stores=1, staff=1, categories=5, products=12, specGroups=5, specOptions=15`。
+- 数据库校验：47 条商品-规格关联、16 个 CHECK、取餐码部分唯一索引存在。
+- 空库 API：`/api/health` 为 `{"status":"ok","db":"up"}`，`/api/menu` 返回 5 分类 / 12 商品。
+- 空库完整链路：顾客登录 → quote ¥22 → 创建订单 → mock 支付 → 取餐码 `A001` → 管理端接单 → 出杯 → 确认取餐 → 工作台营业额 2200 分。
+- dry run 完成后已停止临时容器；开发库 `tocoffee`（5433）未被清空。
+
+注意：`API_PORT` 才是 API 端口变量，`PORT` 不生效；dry run 不要指向 5433，避免误清开发数据。
+
 ### 3. 启动管理端
 
 ```powershell
@@ -373,6 +402,56 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/check.ps1
 ```
 
 脚本检查容器健康、API 构建/静态检查/单测/e2e、管理端构建、顾客端类型检查与空白错误；耗时约 1–2 分钟。
+
+## 10 分钟演示脚本
+
+### 前置
+
+```powershell
+docker compose up -d
+cd apps/api
+npx prisma migrate deploy
+npm run seed
+npm run start:prod
+```
+
+另开两个终端：
+
+```powershell
+cd apps/admin; npm run dev
+cd apps/passenger; npm run dev:h5
+```
+
+- 管理端：<http://127.0.0.1:5173/>
+- 顾客端 H5：<http://127.0.0.1:5174/>
+- 如果 H5 dev watcher 报 `EBUSY .tmpdir`，改用 `npm run build:h5; npx vite preview --outDir dist/build/h5 --host 127.0.0.1 --port 5174`。
+
+### 演示步骤
+
+1. **管理端登录**：`owner / admin123`，进入工作台。确认门店处于营业时间且「接单开关」开启；非营业时间可临时改为 `00:00–23:59`，演示后恢复。
+2. **顾客登录**：打开顾客端，手机号 `13900000071`，获取验证码；开发环境 `devCode` 会自动填入。
+3. **点单**：首页 → 生椰拿铁 → 选「大杯 / 冰 / 少糖 / 燕麦奶 / 加浓缩」→ 加入购物车。
+4. **结算支付**：购物车「去结算」→ 立即取餐 → 确认金额与服务端报价一致 → 提交订单并支付。
+5. **取餐码**：结果页显示 `PAID`、取餐码（按当前号段递增）和预计出杯时间。
+6. **管理端接单**：打开「订单看板」，先点「新单提示音」完成手势解锁；新单 5 秒内出现，接单 → 出杯。
+7. **顾客端联动**：订单详情无需刷新，5 秒内变为「制作中 / 待取餐」；管理端确认取餐后变「已完成」。
+8. **工作台对账**：回到工作台，营业额和订单数增加；客单价 = 营业额 ÷ 订单数。
+9. **预约单（可选）**：顾客端选「预约」+60 分钟，支付后订单进入管理端「预约」Tab，显示释放时间，不响铃；到 `release_at` 后自动进入「进行中」。不要现场等 15 分钟以内的释放，演示只展示预约态即可。
+
+### 最终验收清单
+
+- [ ] `docker compose ps` 显示 `tocoffee-postgres` healthy，端口 5433。
+- [ ] `/api/health` 返回 `{"status":"ok","db":"up"}`。
+- [ ] `/api/menu` 返回 5 分类 / 12 商品。
+- [ ] 管理端 `owner/admin123` 可登录，工作台/分类/商品/规格/订单/门店设置可打开。
+- [ ] 顾客端可登录、加购、选规格、结算、mock 支付、看到取餐码。
+- [ ] 管理端 5 秒内看到新单，提示音可手势开启，接单 → 出杯 → 确认取餐闭环。
+- [ ] 顾客端订单列表 5 Tab、详情时间线、5 秒轮询、再来一单正常。
+- [ ] 预约单未释放时只在「预约」Tab，不响铃、不能接单。
+- [ ] 拒单退款后订单变 `REFUNDED`，工作台金额冲减。
+- [ ] 顾客端 375px、管理端 1280px 无横向滚动。
+- [ ] `scripts/dev/check.ps1` 全量通过。
+- [ ] 小程序 `dist/dev/mp-weixin` 可在微信开发者工具打开。
 
 ## 常见问题
 

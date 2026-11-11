@@ -184,3 +184,13 @@
 - 微信开发者工具构建产物 `project.config.json` 的 AppID 每次构建可能重置为 `touristappid`；只改生成目录，不把测试号写进 `manifest.json`。
 - D14 验证：API 31 单测、65 e2e（10 files）、lint 108 files 0/0；管理端 build、顾客端 type-check、H5/小程序构建通过。
 - 已知非阻塞：管理端 Element Plus 全量引入主 chunk 约 870 kB，P0 不处理；后续再按需引入/自动导入。
+
+## 2026-11-11 D15 空库复现与演示
+
+- 空库验证不要清开发库（5433 有 D8–D14 测试数据）；起临时 `postgres:16` 容器（主机 5434、库名 `tocoffee`、`--rm`），用 `DATABASE_URL` 指向 5434 跑 `migrate deploy` + `seed`。
+- API 端口变量是 `API_PORT`，不是 `PORT`；用 `PORT=3001` 会仍监听 3000 并报 `EADDRINUSE`。
+- 空库实测：1 个 migration、`stores=1/staff=1/categories=5/products=12/specGroups=5/specOptions=15`、47 条商品规格关联、16 个 CHECK、取餐码部分唯一索引存在。
+- 空库全链路：登录 → quote 2200 → 建单 → mock 支付 → 取餐码 A001 → 管理端接单/出杯/取餐 → 工作台 2200 分；验证后删除临时容器，开发库未动。
+- dry run 的 seed 会覆盖 `apps/api/uploads/seed/` 3 张演示图（同内容），用户上传图不在 seed 范围。
+- 演示前建议清库/空库，避免开发库历史订单（含 A067）影响工作台数字；演示脚本见 README「10 分钟演示脚本」。
+- H5 dev watcher 仍可能 `EBUSY .tmpdir`，演示可用 `npm run build:h5` + `npx vite preview --outDir dist/build/h5 --host 127.0.0.1 --port 5174`。
