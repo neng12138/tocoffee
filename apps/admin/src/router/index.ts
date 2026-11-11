@@ -45,6 +45,12 @@ const router = createRouter({
           component: () => import('../views/catalog/SpecView.vue'),
           meta: { title: '规格管理' },
         },
+        {
+          path: 'store',
+          name: 'store',
+          component: () => import('../views/store/StoreSettingsView.vue'),
+          meta: { title: '门店设置' },
+        },
       ],
     },
     {

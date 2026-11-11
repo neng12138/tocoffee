@@ -40,11 +40,12 @@ async function logout() {
         <RouterLink to="/categories" class="nav-item">分类管理</RouterLink>
         <RouterLink to="/products" class="nav-item">商品管理</RouterLink>
         <RouterLink to="/specs" class="nav-item">规格管理</RouterLink>
+        <RouterLink to="/store" class="nav-item">门店设置</RouterLink>
       </nav>
 
       <div class="sidebar-foot">
         <span>P0 · 单店自提</span>
-        <span>Day 9 · 订单看板</span>
+        <span>Day 11 · 工作台与门店设置</span>
       </div>
     </aside>
 

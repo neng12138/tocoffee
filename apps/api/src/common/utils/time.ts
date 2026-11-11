@@ -17,6 +17,12 @@ export interface BusinessHoursState {
   todayHours: BusinessHour | null;
 }
 
+export interface ShanghaiDayRange {
+  date: string;
+  start: Date;
+  end: Date;
+}
+
 const WEEKDAY_TO_ISO: Record<string, number> = {
   Mon: 1,
   Tue: 2,
@@ -55,6 +61,29 @@ export function getZonedNow(now = new Date()): ZonedNow {
     day: WEEKDAY_TO_ISO[parts.weekday ?? ''] ?? 0,
     minutes: hour * 60 + minute,
     date: `${parts.year}-${parts.month}-${parts.day}`,
+  };
+}
+
+/**
+ * 把 YYYY-MM-DD 解析成上海时区当天 [start, end)。
+ * 不传 date 时取上海今天；非法日期直接抛 RangeError，由调用方转成 400。
+ */
+export function getShanghaiDayRange(date?: string): ShanghaiDayRange {
+  const target = date ?? getZonedNow().date;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) {
+    throw new RangeError(`Invalid date: ${target}`);
+  }
+
+  const start = new Date(`${target}T00:00:00+08:00`);
+  if (Number.isNaN(start.getTime()) || getZonedNow(start).date !== target) {
+    throw new RangeError(`Invalid date: ${target}`);
+  }
+
+  return {
+    date: target,
+    start,
+    end: new Date(start.getTime() + 24 * 60 * 60 * 1000),
   };
 }
 

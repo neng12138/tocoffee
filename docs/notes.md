@@ -141,3 +141,15 @@
 - 开发库首次启动会清掉历史遗留的过期待支付单/旧 `READY` 单，这是预期行为；不是数据丢失。
 - D10 验证：24 单测、52 e2e（8 files），其中 `jobs.e2e-spec.ts` 5 个；`npm run lint` 93 files 0/0。
 - 已知边界：`NO_SHOW` 依赖 API 在 23:59 存活；如果跨天停机，会在下一次 23:59 补处理前一天，延迟一天但不遗漏。P1 可改为启动时立即补跑一次。
+
+## 2026-11-11 D11 工作台与门店设置
+
+- 工作台营业额按 `paid_at` 归日，退款按 `Refund.completedAt` 归日冲减；订单数同口径，包含 `NO_SHOW`，排除待支付/已取消。不要用 `created_at` 代替支付时间。
+- 待接单/待取餐是「当前实时单量」，不受统计日期限制；待接单只算立即单或已释放预约单。
+- 最近订单排除待支付/已取消，按 `created_at` 倒序取 10 条；工作台轮询 10 秒，订单看板仍为 5 秒。
+- 客单价 0 单返回 `null`，不能返回 0，否则前端无法区分「没有订单」和「客单价为 0」。
+- 门店设置 `PATCH /api/admin/store` 仅 OWNER；STAFF 可 GET 不可写。营业时间 P0 不支持跨天，后端与前端都校验 `open < close`。
+- 取餐码前缀只影响新支付订单，不回溯历史；保存后顾客端下一次请求即生效，没有缓存层。
+- 管理端工作台和门店设置均复用 `StaffJwtGuard`，不要忘记 `DashboardModule`/`StoresModule` imports `AuthModule`，否则 `JwtService` 解析失败。
+- D11 验证：API 29 单测、60 e2e（9 files）、lint 106 files 0/0；管理端 type-check/build 通过；工作台/门店设置 CDP 1440×900 验收 0 error。
+- 已知风险：退款跨日只冲减退款完成日；历史待支付单不进入工作台，但会由 D10 过期任务逐步清理；Element Plus 主 chunk 约 870 kB，D14 再评估按需加载。

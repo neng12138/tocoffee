@@ -6,6 +6,7 @@ import { validateEnv } from './config/env.validation.js';
 import { PrismaModule } from './database/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
@@ -28,6 +29,7 @@ import { UploadsModule } from './modules/uploads/uploads.module.js';
     StoresModule,
     CatalogModule,
     OrdersModule,
+    DashboardModule,
     JobsModule,
     UploadsModule,
   ],

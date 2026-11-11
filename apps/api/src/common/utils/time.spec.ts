@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getBusinessHoursState,
+  getShanghaiDayRange,
   getZonedNow,
   parseBusinessHours,
 } from './time.js';
@@ -48,6 +49,19 @@ describe('time utils', () => {
     ]);
 
     expect(parsed).toEqual([{ day: 1, open: '08:00', close: '20:00' }]);
+  });
+
+  it('builds a Shanghai day range with UTC boundaries', () => {
+    const range = getShanghaiDayRange('2026-11-11');
+
+    expect(range.date).toBe('2026-11-11');
+    expect(range.start.toISOString()).toBe('2026-11-10T16:00:00.000Z');
+    expect(range.end.toISOString()).toBe('2026-11-11T16:00:00.000Z');
+  });
+
+  it('rejects malformed or rolled-over dates', () => {
+    expect(() => getShanghaiDayRange('2026-2-1')).toThrow(RangeError);
+    expect(() => getShanghaiDayRange('2026-02-31')).toThrow(RangeError);
   });
 
   it('does not treat an overnight range as open (P0 unsupported)', () => {
