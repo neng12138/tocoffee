@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-D1–D13 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传、服务端 quote 定价与金额单测、创建待支付订单（幂等 / 价格变化检测 / 预约释放时间）、mock 支付/取餐码/订单查询与取消、顾客端登录/结算/支付结果页，以及管理端订单看板（接单/出杯/确认取餐/拒单退款、预约 Tab、5 秒轮询与新单提示音）。D10 增加支付超时取消、预约单释放与打烊 `NO_SHOW` 定时任务；D11 增加管理端工作台统计与门店设置；D12 增加顾客端订单列表与详情、按状态分组、5 秒进度轮询与再来一单；D13 补齐顾客→管理端全链路 e2e 与订单映射单测，当前 **31 单测 / 65 e2e**。
+D1–D14 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 张业务表与初始 seed（5 分类 / 12 商品 / 5 规格组）、顾客/员工 JWT 登录、门店与菜单查询 API、顾客端首页/菜单/规格弹层/购物车、管理端登录/分类/商品/规格 CRUD/图片上传、服务端 quote 定价与金额单测、创建待支付订单（幂等 / 价格变化检测 / 预约释放时间）、mock 支付/取餐码/订单查询与取消、顾客端登录/结算/支付结果页，以及管理端订单看板（接单/出杯/确认取餐/拒单退款、预约 Tab、5 秒轮询与新单提示音）。D10 增加支付超时取消、预约单释放与打烊 `NO_SHOW` 定时任务；D11 增加管理端工作台统计与门店设置；D12 增加顾客端订单列表与详情、按状态分组、5 秒进度轮询与再来一单；D13 补齐顾客→管理端全链路 e2e 与订单映射单测；D14 完成 375px/1280px UI 走查、H5 favicon 修复、提示音手势开关与预约 Tab 验收，当前 **31 单测 / 65 e2e**。
 小程序首次需在微信开发者工具手动导入 `apps/passenger/dist/dev/mp-weixin`；导入一次后后续直接打开最近项目。
 
 ## 文档
@@ -28,7 +28,7 @@ D1–D13 已完成：Docker PostgreSQL、三端脚手架、`/api/health`、15 �
 
 - 完整 logo（透明底）：`apps/admin/public/brand/logo.png`；顾客端副本在 `apps/passenger/src/static/logo.png`
 - 方形图标：`apps/admin/public/brand/logo-square.png`
-- 杯形小标（favicon）：`apps/admin/public/brand/logo-mark.png`
+- 杯形小标（favicon）：`apps/admin/public/brand/logo-mark.png`；顾客端 H5 副本在 `apps/passenger/src/static/favicon.png`
 - 原始图片：`docs/assets/brand/tocoffee-logo.jpg`
 
 管理端侧边栏、登录页与顾客端首页均已接入；小程序端使用顾客端 `static/logo.png`。
@@ -273,6 +273,16 @@ npm run start:dev
 - 新增 `src/modules/orders/mappers/order.mapper.spec.ts`，覆盖 `businessDate` 的 `YYYY-MM-DD` 格式、时间字段序列化、商品快照与事件时间线映射。
 - 当前 API 测试：**31 个单测、65 个 e2e**；全量 e2e 串行执行，避免多个 suite 同时修改门店营业时间。
 
+### 2.12 D14 双端 UI 验收
+
+- 顾客端按 **375×812** 走查首页、菜单、规格弹层、购物车、结算、订单列表、订单详情，页面 `scrollWidth` 与视口一致，无横向滚动；底部购物车/结算栏不被安全区裁切。
+- 管理端按 **1280×900** 走查工作台、订单看板、门店设置，无横向溢出；侧边栏、统计卡、表格和表单在桌面宽度下正常。
+- 新单提示音为手势开启：点击「新单提示音」后写入 `localStorage.tocoffee.admin.sound=1` 并弹成功提示；未释放预约单出现在「预约」Tab，不触发标题闪烁/提示音。
+- 修复 H5 `favicon.ico` 404：新增 `apps/passenger/src/static/favicon.png`，并在 `apps/passenger/index.html` 声明图标。
+- 管理端页脚更新为 `Day 14 · 双端验收`。
+- 微信开发者工具打开 `apps/passenger/dist/dev/mp-weixin`；构建产物 AppID 使用 `wx7c9cd90fc226004b`，源码 `manifest.json` 仍保持为空，避免把本机测试号写死进仓库。
+- 已知非阻塞：管理端主 chunk 约 870 kB，原因是 Element Plus 全量引入；P0 优先功能正确，后续可改按需引入/自动导入。
+
 ### 3. 启动管理端
 
 ```powershell
@@ -340,6 +350,13 @@ npm run dev:mp-weixin
 - 进度轮询：待支付/已支付/制作中/待取餐状态每 5 秒刷新；页面隐藏时停止，返回时恢复；状态变化 toast。
 - 再来一单：把订单商品与规格还原后加购；商品下架/售罄时跳过并提示。
 - 首页新增「我的订单」入口，可直接查看进行中、历史订单和取餐码。
+
+#### D14 已实现
+
+- 顾客端 375px 与桌面浏览器走查：首页、菜单、规格、购物车、结算、订单列表、订单详情均无横向滚动。
+- 管理端 1280px 走查：工作台、订单看板、门店设置布局正常；预约单在「预约」Tab 显示 `待接单` + 释放时间。
+- 新单提示音手势开关验证：切换后持久化 `tocoffee.admin.sound`，并弹「新单提示音已开启」。
+- 修复 H5 favicon 404；管理端页脚更新为 D14 验收状态。
 
 #### D5 已实现
 

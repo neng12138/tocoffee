@@ -45,7 +45,7 @@ async function logout() {
 
       <div class="sidebar-foot">
         <span>P0 · 单店自提</span>
-        <span>Day 11 · 工作台与门店设置</span>
+        <span>Day 14 · 双端验收</span>
       </div>
     </aside>
 
