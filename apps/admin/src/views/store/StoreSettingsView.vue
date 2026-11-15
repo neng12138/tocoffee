@@ -307,13 +307,13 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 840px;
+  max-width: 1040px;
   margin: 0 auto;
 }
 
 .settings-alert {
   width: 100%;
-  max-width: 840px;
+  max-width: 1040px;
   margin: 0 auto;
 }
 
@@ -353,6 +353,7 @@ onMounted(() => {
 .hours-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
 }
 
