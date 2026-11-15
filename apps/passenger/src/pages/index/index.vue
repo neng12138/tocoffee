@@ -2,22 +2,41 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import StoreCard from '@/components/StoreCard.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 import { useShopStore } from '@/stores/store'
 import type { Product } from '@/types/catalog'
 import { formatPrice } from '@/utils/money'
 
+const auth = useAuthStore()
 const shop = useShopStore()
 const cart = useCartStore()
 const imageErrors = ref<Record<string, boolean>>({})
 
 const hotList = computed(() => (shop.hotProducts.length ? shop.hotProducts : shop.products.slice(0, 4)))
 const isClosed = computed(() => Boolean(shop.store) && !shop.store!.isOpen)
+const phoneTail = computed(() => auth.member?.phone?.slice(-4) ?? '')
 
 onShow(async () => {
   await shop.load()
   if (shop.store) cart.hydrate(shop.store.id)
+  if (auth.isLoggedIn) auth.loadMe()
 })
+
+function openAccountMenu(): void {
+  uni.showModal({
+    title: `尾号 ${phoneTail.value}`,
+    content: '当前账号已登录，确定退出登录吗？',
+    confirmText: '退出登录',
+    cancelText: '取消',
+    confirmColor: '#9b3d2f',
+    success: (result) => {
+      if (!result.confirm) return
+      auth.logout()
+      uni.showToast({ title: '已退出登录', icon: 'none' })
+    },
+  })
+}
 
 function goMenu(productId?: string): void {
   const suffix = productId ? `?product=${encodeURIComponent(productId)}` : ''
@@ -46,12 +65,14 @@ function retry(): void {
     <view class="hero">
       <view class="brand-row">
         <image class="brand-logo" src="/static/logo.png" mode="widthFix" />
-        <view class="brand-pill">自提点单</view>
+        <view v-if="auth.isLoggedIn && phoneTail" class="account-chip" @tap="openAccountMenu">
+          <text class="account-tail">尾号 {{ phoneTail }}</text>
+          <text class="account-caret">⌄</text>
+        </view>
       </view>
 
       <text class="eyebrow">TOCOFFEE · DAILY BREW</text>
       <text class="title">今天，喝杯好咖啡</text>
-      <text class="subtitle">现点现做，到店即取。把等待留给咖啡，把时间留给自己。</text>
     </view>
 
     <view v-if="shop.loading && !shop.store" class="state-card">
@@ -76,21 +97,6 @@ function retry(): void {
           <text class="order-entry-desc">查看进行中、历史订单和取餐码</text>
         </view>
         <text class="order-entry-arrow">→</text>
-      </view>
-
-      <view class="quick-row">
-        <view class="quick-item">
-          <text class="quick-icon">☕</text>
-          <text class="quick-label">现点现做</text>
-        </view>
-        <view class="quick-item">
-          <text class="quick-icon">⏱</text>
-          <text class="quick-label">约 {{ shop.store?.prepMinutes ?? 8 }} 分钟</text>
-        </view>
-        <view class="quick-item">
-          <text class="quick-icon">🛍</text>
-          <text class="quick-label">到店自提</text>
-        </view>
       </view>
 
       <view class="order-cta">
@@ -178,14 +184,26 @@ function retry(): void {
   height: auto;
 }
 
-.brand-pill {
-  padding: 8rpx 18rpx;
-  color: #6f4e37;
-  font-size: 21rpx;
-  letter-spacing: 1rpx;
-  background: rgba(255, 253, 249, 0.7);
-  border: 1rpx solid #e6dccf;
+.account-chip {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 20rpx;
+  background: rgba(255, 253, 249, 0.8);
+  border: 1rpx solid #e4d7c8;
   border-radius: 999rpx;
+}
+
+.account-tail {
+  color: #6f4e37;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.account-caret {
+  color: #a98a72;
+  font-size: 22rpx;
+  line-height: 1;
 }
 
 .eyebrow {
@@ -203,15 +221,6 @@ function retry(): void {
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -1rpx;
-}
-
-.subtitle {
-  display: block;
-  max-width: 580rpx;
-  margin-top: 16rpx;
-  color: #7a6a5d;
-  font-size: 25rpx;
-  line-height: 1.7;
 }
 
 .state-card {
@@ -308,28 +317,6 @@ function retry(): void {
 .order-entry-arrow {
   color: #8b6b4d;
   font-size: 30rpx;
-}
-
-.quick-row {
-  display: flex;
-  margin: 24rpx 4rpx 0;
-}
-
-.quick-item {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-}
-
-.quick-icon {
-  font-size: 25rpx;
-}
-
-.quick-label {
-  color: #8b7a6c;
-  font-size: 21rpx;
 }
 
 .order-cta {

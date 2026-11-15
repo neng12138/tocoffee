@@ -139,7 +139,6 @@ function goNext(): void {
       <view class="demo">
         <text class="demo-title">演示说明</text>
         <text class="demo-line">开发环境会返回验证码并自动填入，不需要真实短信。</text>
-        <text class="demo-line">登录仅用于下单，D8 暂不接入微信授权。</text>
       </view>
     </view>
   </view>
@@ -208,7 +207,9 @@ function goNext(): void {
 }
 
 .field-input {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   height: 88rpx;
   padding: 0 24rpx;
   color: #2b2118;
@@ -229,6 +230,7 @@ function goNext(): void {
 
 .code-input {
   flex: 1;
+  min-width: 0;
 }
 
 .code-btn {

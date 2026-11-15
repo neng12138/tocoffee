@@ -159,7 +159,7 @@ async function loadMore(): Promise<void> {
 }
 
 function goLogin(): void {
-  uni.navigateTo({
+  uni.redirectTo({
     url: `/pages/login/login?redirect=${encodeURIComponent('/pages/order/list')}`,
   })
 }
