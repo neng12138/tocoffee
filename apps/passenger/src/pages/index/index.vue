@@ -12,6 +12,7 @@ const auth = useAuthStore()
 const shop = useShopStore()
 const cart = useCartStore()
 const imageErrors = ref<Record<string, boolean>>({})
+const accountMenuOpen = ref(false)
 
 const hotList = computed(() => (shop.hotProducts.length ? shop.hotProducts : shop.products.slice(0, 4)))
 const isClosed = computed(() => Boolean(shop.store) && !shop.store!.isOpen)
@@ -23,10 +24,19 @@ onShow(async () => {
   if (auth.isLoggedIn) auth.loadMe()
 })
 
-function openAccountMenu(): void {
+function toggleAccountMenu(): void {
+  accountMenuOpen.value = !accountMenuOpen.value
+}
+
+function closeAccountMenu(): void {
+  accountMenuOpen.value = false
+}
+
+function confirmLogout(): void {
+  accountMenuOpen.value = false
   uni.showModal({
-    title: `尾号 ${phoneTail.value}`,
-    content: '当前账号已登录，确定退出登录吗？',
+    title: '退出登录',
+    content: '退出后需要重新登录才能查看订单，确定退出吗？',
     confirmText: '退出登录',
     cancelText: '取消',
     confirmColor: '#9b3d2f',
@@ -65,9 +75,15 @@ function retry(): void {
     <view class="hero">
       <view class="brand-row">
         <image class="brand-logo" src="/static/logo.png" mode="widthFix" />
-        <view v-if="auth.isLoggedIn && phoneTail" class="account-chip" @tap="openAccountMenu">
-          <text class="account-tail">尾号 {{ phoneTail }}</text>
-          <text class="account-caret">⌄</text>
+        <view v-if="auth.isLoggedIn && phoneTail" class="account-wrap">
+          <view class="account-chip" @tap.stop="toggleAccountMenu">
+            <text class="account-tail">尾号 {{ phoneTail }}</text>
+            <text class="account-caret">{{ accountMenuOpen ? '⌃' : '⌄' }}</text>
+          </view>
+          <view v-if="accountMenuOpen" class="account-mask" @tap="closeAccountMenu"></view>
+          <view v-if="accountMenuOpen" class="account-menu" @tap.stop>
+            <view class="account-menu-item" @tap="confirmLogout">退出登录</view>
+          </view>
         </view>
       </view>
 
@@ -184,6 +200,10 @@ function retry(): void {
   height: auto;
 }
 
+.account-wrap {
+  position: relative;
+}
+
 .account-chip {
   display: flex;
   align-items: center;
@@ -204,6 +224,42 @@ function retry(): void {
   color: #a98a72;
   font-size: 22rpx;
   line-height: 1;
+}
+
+.account-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  background: transparent;
+}
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 10rpx);
+  right: 0;
+  z-index: 51;
+  min-width: 196rpx;
+  padding: 10rpx;
+  background: #fffdf9;
+  border: 1rpx solid #e4d7c8;
+  border-radius: 18rpx;
+  box-shadow: 0 12rpx 32rpx rgba(61, 48, 38, 0.14);
+}
+
+.account-menu-item {
+  padding: 20rpx 26rpx;
+  color: #9b3d2f;
+  font-size: 24rpx;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 12rpx;
+}
+
+.account-menu-item:active {
+  background: #f7efe6;
 }
 
 .eyebrow {
