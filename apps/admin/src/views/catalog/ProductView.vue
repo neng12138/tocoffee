@@ -289,7 +289,13 @@ onMounted(loadAll)
         @keyup.enter="loadProducts"
         @clear="loadProducts"
       />
-      <el-select v-model="filters.categoryId" placeholder="全部分类" clearable @change="loadProducts">
+      <el-select
+        v-model="filters.categoryId"
+        class="toolbar-select"
+        placeholder="全部分类"
+        clearable
+        @change="loadProducts"
+      >
         <el-option
           v-for="category in categories"
           :key="category.id"
@@ -297,13 +303,21 @@ onMounted(loadAll)
           :value="category.id"
         />
       </el-select>
-      <el-select v-model="filters.status" placeholder="全部状态" clearable @change="loadProducts">
+      <el-select
+        v-model="filters.status"
+        class="toolbar-select"
+        placeholder="全部状态"
+        clearable
+        @change="loadProducts"
+      >
         <el-option label="在售" value="ON_SALE" />
         <el-option label="售罄" value="SOLD_OUT" />
         <el-option label="已下架" value="OFF_SHELF" />
       </el-select>
-      <el-button type="primary" plain @click="loadProducts">查询</el-button>
-      <el-button link @click="resetFilters">重置</el-button>
+      <div class="toolbar-actions">
+        <el-button type="primary" plain @click="loadProducts">查询</el-button>
+        <el-button type="danger" plain @click="resetFilters">重置</el-button>
+      </div>
     </div>
 
     <el-table v-loading="loading" :data="products" row-key="id" stripe>

@@ -19,7 +19,7 @@ const isClosed = computed(() => Boolean(shop.store) && !shop.store!.isOpen)
 const phoneTail = computed(() => auth.member?.phone?.slice(-4) ?? '')
 
 onShow(async () => {
-  await shop.load()
+  await shop.load(true)
   if (shop.store) cart.hydrate(shop.store.id)
   if (auth.isLoggedIn) auth.loadMe()
 })

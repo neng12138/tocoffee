@@ -144,7 +144,38 @@ a {
 }
 
 .toolbar-search {
-  width: 240px;
+  flex: 0 0 260px;
+  width: 260px;
+}
+
+.toolbar-select {
+  flex: 0 0 180px;
+  width: 180px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+@media (max-width: 960px) {
+  .toolbar-search {
+    flex: 1 1 240px;
+    width: auto;
+  }
+
+  .toolbar-select {
+    flex: 1 1 160px;
+    width: auto;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
 }
 
 @media (max-width: 760px) {
@@ -153,6 +184,7 @@ a {
   }
 
   .toolbar-search {
+    flex: 1 1 100%;
     width: 100%;
   }
 }

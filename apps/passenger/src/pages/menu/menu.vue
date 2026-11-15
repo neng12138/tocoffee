@@ -50,7 +50,7 @@ onShow(() => {
 })
 
 async function initialize(): Promise<void> {
-  await shop.load()
+  await shop.load(true)
   if (!shop.store) return
 
   cart.hydrate(shop.store.id)

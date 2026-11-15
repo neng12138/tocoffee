@@ -202,3 +202,11 @@
 - 源图进 Git；`apps/api/uploads/seed/` 只是 seed 运行副本，仍被 `.gitignore` 忽略。
 - 图片 URL 由 `PUBLIC_BASE_URL` 拼接。本机 OneSoon 占用 3000，ToCoffee API 实际用 3002，因此本地 `.env` 必须同时改 `API_PORT=3002` 和 `PUBLIC_BASE_URL=http://127.0.0.1:3002`，否则商品图会指向 OneSoon 并 404。
 - 视觉验收：首页热销 3 张、菜单 12 张全部 `naturalWidth=800`，0 console error。
+
+## 2026-11-15 演示同步与筛选布局
+
+- 管理端商品管理筛选：搜索、分类、状态三列同排，查询/重置在右侧；重置用 Element Plus `danger plain`（浅红底/红字），不再用 `link`。
+- 顾客端首页和菜单页 `onShow` 使用 `shop.load(true)` 强制刷新；之前 `load()` 命中 `loaded` 缓存，后台改价/改规格后返回页面仍显示旧数据。
+- 实测生椰拿铁 22→24、大杯 +3→+5，返回首页再进菜单后商品卡和规格弹层均更新；测试后恢复 22/+3。
+- 成本是每次显示页面多两次请求（门店+菜单）；P0 可接受，P1 可改 TTL 缓存/下拉刷新。
+- 购物车保存加入时的价格快照；结算时服务端 quote 重新计价，变价返回 `PRICE_CHANGED`，属预期。
