@@ -43,6 +43,18 @@ const days = ref<DayRow[]>(
 
 const isOpen = computed(() => current.value?.isOpen ?? false)
 const todayHours = computed(() => current.value?.todayHours ?? null)
+const enabledDayCount = computed(() => days.value.filter((row) => row.enabled).length)
+const weeklyHours = computed(() => {
+  const totalMinutes = days.value.reduce((total, row) => {
+    if (!row.enabled) return total
+    const [openHour, openMinute] = row.open.split(':').map(Number)
+    const [closeHour, closeMinute] = row.close.split(':').map(Number)
+    const minutes = closeHour * 60 + closeMinute - (openHour * 60 + openMinute)
+    return total + Math.max(0, minutes)
+  }, 0)
+  const hours = totalMinutes / 60
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1)
+})
 
 function hoursPayload(): StoreBusinessHour[] {
   return days.value
@@ -231,14 +243,22 @@ onMounted(() => {
         <template #header>
           <div class="card-title-row">
             <span>营业时间</span>
-            <span class="muted">P0 不支持跨天营业，打烊需晚于开门</span>
+            <div class="hours-summary">
+              <span class="summary-pill">{{ enabledDayCount }} 天营业</span>
+              <span>每周 {{ weeklyHours }} 小时</span>
+            </div>
           </div>
         </template>
 
         <div class="hours-list">
-          <div v-for="row in days" :key="row.day" class="hours-row">
-            <el-switch v-model="row.enabled" />
+          <div
+            v-for="row in days"
+            :key="row.day"
+            class="hours-row"
+            :class="{ 'is-closed': !row.enabled }"
+          >
             <span class="day-label">{{ row.label }}</span>
+            <el-switch v-model="row.enabled" />
             <el-time-select
               v-model="row.open"
               start="06:00"
@@ -256,7 +276,7 @@ onMounted(() => {
               :disabled="!row.enabled"
               placeholder="打烊"
             />
-            <span v-if="!row.enabled" class="muted rest-tip">休息</span>
+            <span class="rest-pill" :class="{ 'is-hidden': row.enabled }">休息</span>
           </div>
         </div>
       </el-card>
@@ -344,10 +364,29 @@ onMounted(() => {
   max-width: 120px;
 }
 
+.hours-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--tc-muted);
+  font-size: 12px;
+}
+
+.summary-pill {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--tc-primary-soft);
+  color: var(--tc-primary);
+  font-weight: 600;
+}
+
 .hours-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
 }
 
 .hours-row {
@@ -355,6 +394,27 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  padding: 9px 16px;
+  border: 1px solid var(--tc-border);
+  border-radius: 12px;
+  background: #fdfaf6;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.hours-row:hover {
+  border-color: #d8c4b2;
+  background: #fffdf9;
+  box-shadow: 0 3px 10px rgb(111 78 55 / 6%);
+}
+
+.hours-row.is-closed {
+  border-color: #eee6dc;
+  background: #f7f3ed;
+}
+
+.hours-row.is-closed .day-label,
+.hours-row.is-closed .time-sep {
+  color: #a99a8a;
 }
 
 .hours-row :deep(.el-select) {
@@ -364,7 +424,10 @@ onMounted(() => {
 
 .day-label {
   width: 44px;
+  color: var(--tc-text);
   font-size: 13px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .time-sep {
@@ -372,8 +435,17 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.rest-tip {
+.rest-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #efe9e0;
+  color: #9a8876;
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.rest-pill.is-hidden {
+  visibility: hidden;
 }
 
 .save-row {
