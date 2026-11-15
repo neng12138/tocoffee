@@ -315,7 +315,7 @@ onMounted(loadAll)
         <el-option label="已下架" value="OFF_SHELF" />
       </el-select>
       <div class="toolbar-actions">
-        <el-button type="primary" plain @click="loadProducts">查询</el-button>
+        <el-button type="primary" plain class="toolbar-query" @click="loadProducts">查询</el-button>
         <el-button type="danger" plain @click="resetFilters">重置</el-button>
       </div>
     </div>

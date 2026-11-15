@@ -49,7 +49,7 @@ const router = createRouter({
           path: 'store',
           name: 'store',
           component: () => import('../views/store/StoreSettingsView.vue'),
-          meta: { title: '门店设置' },
+          meta: { title: '门店管理' },
         },
       ],
     },

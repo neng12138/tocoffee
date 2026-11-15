@@ -80,7 +80,7 @@ async function load() {
   try {
     applyStore(await fetchAdminStore())
   } catch (err) {
-    error.value = getErrorMessage(err, '读取门店设置失败')
+    error.value = getErrorMessage(err, '读取门店信息失败')
   } finally {
     loading.value = false
   }
@@ -139,9 +139,9 @@ async function save() {
       businessHours: hoursPayload(),
     }
     applyStore(await updateAdminStore(payload))
-    ElMessage.success('门店设置已保存')
+    ElMessage.success('门店管理已保存')
   } catch (err) {
-    error.value = getErrorMessage(err, '保存门店设置失败')
+    error.value = getErrorMessage(err, '保存门店信息失败')
   } finally {
     saving.value = false
   }
@@ -156,7 +156,7 @@ onMounted(() => {
   <div v-loading="loading" class="store-settings">
     <div class="page-heading">
       <div>
-        <h2>门店设置</h2>
+        <h2>门店管理</h2>
         <p class="muted">保存后顾客端下次请求立即生效；休息日直接关闭该天营业时间。</p>
       </div>
       <div class="status-line">
@@ -267,7 +267,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 980px;
+  max-width: 880px;
 }
 
 .page-heading {
@@ -299,6 +299,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-width: 840px;
 }
 
 .form-grid {
@@ -307,8 +308,13 @@ onMounted(() => {
   gap: 4px 20px;
 }
 
+.form-grid :deep(.el-form-item) {
+  max-width: 380px;
+}
+
 .span-2 {
   grid-column: span 2;
+  max-width: 600px;
 }
 
 .card-title-row {
@@ -333,6 +339,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.hours-row :deep(.el-select) {
+  flex: 0 0 150px;
+  width: 150px;
 }
 
 .day-label {

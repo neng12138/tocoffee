@@ -168,13 +168,19 @@ onMounted(load)
           <el-input v-model="form.name" maxlength="30" show-word-limit />
         </el-form-item>
         <el-form-item label="排序">
-          <el-input-number v-model="form.sort" :min="0" :max="9999" controls-position="right" />
+          <el-input-number
+            v-model="form.sort"
+            :min="0"
+            :max="9999"
+            controls-position="right"
+            class="sort-input"
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="form.status" style="width: 100%">
-            <el-option label="启用" value="ACTIVE" />
-            <el-option label="停用" value="DISABLED" />
-          </el-select>
+          <el-radio-group v-model="form.status">
+            <el-radio value="ACTIVE">启用</el-radio>
+            <el-radio value="DISABLED">停用</el-radio>
+          </el-radio-group>
         </el-form-item>
       </el-form>
 
@@ -185,3 +191,9 @@ onMounted(load)
     </el-dialog>
   </el-card>
 </template>
+
+<style scoped>
+.sort-input {
+  width: 120px;
+}
+</style>
