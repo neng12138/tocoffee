@@ -230,7 +230,26 @@ const products = [
   },
 ] as const;
 
-const seedImages = ['coffee-1.png', 'coffee-2.png', 'coffee-3.png'];
+const seedImages = [
+  'coconut-latte.png',
+  'caramel-macchiato.png',
+  'oat-latte.png',
+  'americano.png',
+  'latte.png',
+  'cappuccino.png',
+  'mocha.png',
+  'matcha-latte.png',
+  'hot-chocolate.png',
+  'lemon-tea.png',
+  'peach-oolong.png',
+  'croissant.png',
+] as const;
+
+if (seedImages.length !== products.length) {
+  throw new Error(
+    `Seed image count (${seedImages.length}) does not match product count (${products.length})`,
+  );
+}
 
 async function copySeedImages(): Promise<void> {
   await mkdir(uploadsDir, { recursive: true });
@@ -386,7 +405,7 @@ async function seedSpecGroups(): Promise<void> {
 async function seedProducts(): Promise<void> {
   for (const [index, product] of products.entries()) {
     const category = categories[product.categoryIndex];
-    const imageUrl = `${publicBaseUrl}/uploads/seed/${seedImages[index % seedImages.length]}`;
+    const imageUrl = `${publicBaseUrl}/uploads/seed/${seedImages[index]}`;
 
     await prisma.product.upsert({
       where: { id: product.id },

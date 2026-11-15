@@ -64,6 +64,7 @@ npm run start:dev
 
 - `migrate deploy` 应用 `prisma/migrations` 下的迁移；日常改 schema 用 `npx prisma migrate dev`
 - `seed` 可重复执行：示例门店、owner、5 分类、12 商品、5 规格组、15 选项
+- 12 个商品各有一张 `apps/api/assets/seed/*.png` 演示图，seed 会复制到 `apps/api/uploads/seed/`；`PUBLIC_BASE_URL` 必须与 API 实际访问地址一致，否则图片 URL 会指向错误端口
 - 演示账号：`owner / admin123`
 
 - API：<http://localhost:3000/api>

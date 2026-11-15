@@ -191,6 +191,14 @@
 - API 端口变量是 `API_PORT`，不是 `PORT`；用 `PORT=3001` 会仍监听 3000 并报 `EADDRINUSE`。
 - 空库实测：1 个 migration、`stores=1/staff=1/categories=5/products=12/specGroups=5/specOptions=15`、47 条商品规格关联、16 个 CHECK、取餐码部分唯一索引存在。
 - 空库全链路：登录 → quote 2200 → 建单 → mock 支付 → 取餐码 A001 → 管理端接单/出杯/取餐 → 工作台 2200 分；验证后删除临时容器，开发库未动。
-- dry run 的 seed 会覆盖 `apps/api/uploads/seed/` 3 张演示图（同内容），用户上传图不在 seed 范围。
+- dry run 的 seed 会覆盖 `apps/api/uploads/seed/` 12 张演示图（同内容），用户上传图不在 seed 范围。
 - 演示前建议清库/空库，避免开发库历史订单（含 A067）影响工作台数字；演示脚本见 README「10 分钟演示脚本」。
 - H5 dev watcher 仍可能 `EBUSY .tmpdir`，演示可用 `npm run build:h5` + `npx vite preview --outDir dist/build/h5 --host 127.0.0.1 --port 5174`。
+
+## 2026-11-15 演示饮品图
+
+- 12 个商品各配一张 800×800 的品牌插画，源文件在 `apps/api/assets/seed/`：`coconut-latte.png`、`caramel-macchiato.png`、`oat-latte.png`、`americano.png`、`latte.png`、`cappuccino.png`、`mocha.png`、`matcha-latte.png`、`hot-chocolate.png`、`lemon-tea.png`、`peach-oolong.png`、`croissant.png`。
+- `seedImages` 与 `products` 按顺序一一对应，数量不一致时 seed 直接报错，不再循环复用 3 张图。
+- 源图进 Git；`apps/api/uploads/seed/` 只是 seed 运行副本，仍被 `.gitignore` 忽略。
+- 图片 URL 由 `PUBLIC_BASE_URL` 拼接。本机 OneSoon 占用 3000，ToCoffee API 实际用 3002，因此本地 `.env` 必须同时改 `API_PORT=3002` 和 `PUBLIC_BASE_URL=http://127.0.0.1:3002`，否则商品图会指向 OneSoon 并 404。
+- 视觉验收：首页热销 3 张、菜单 12 张全部 `naturalWidth=800`，0 console error。
