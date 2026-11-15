@@ -169,7 +169,14 @@ onMounted(() => {
       </div>
     </div>
 
-    <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
+    <el-alert
+      v-if="error"
+      :title="error"
+      type="error"
+      :closable="false"
+      show-icon
+      class="settings-alert"
+    />
 
     <el-form label-position="top" class="settings-form" @submit.prevent>
       <el-card shadow="never">
@@ -267,7 +274,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 880px;
+  width: 100%;
 }
 
 .page-heading {
@@ -299,7 +306,15 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
   max-width: 840px;
+  margin: 0 auto;
+}
+
+.settings-alert {
+  width: 100%;
+  max-width: 840px;
+  margin: 0 auto;
 }
 
 .form-grid {

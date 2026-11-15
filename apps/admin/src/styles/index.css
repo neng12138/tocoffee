@@ -161,15 +161,15 @@ a {
 }
 
 .toolbar-query.el-button--primary.is-plain {
-  --el-button-text-color: var(--tc-primary);
-  --el-button-bg-color: #fffaf5;
-  --el-button-border-color: #d8c4b2;
+  --el-button-text-color: #409eff;
+  --el-button-bg-color: #ecf5ff;
+  --el-button-border-color: #a0cfff;
   --el-button-hover-text-color: #fff;
-  --el-button-hover-bg-color: var(--tc-primary);
-  --el-button-hover-border-color: var(--tc-primary);
+  --el-button-hover-bg-color: #337ecc;
+  --el-button-hover-border-color: #337ecc;
   --el-button-active-text-color: #fff;
-  --el-button-active-bg-color: #5d4030;
-  --el-button-active-border-color: #5d4030;
+  --el-button-active-bg-color: #2b6cb0;
+  --el-button-active-border-color: #2b6cb0;
 }
 
 @media (max-width: 960px) {
