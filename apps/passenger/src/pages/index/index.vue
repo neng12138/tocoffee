@@ -32,10 +32,15 @@ function closeAccountMenu(): void {
   accountMenuOpen.value = false
 }
 
+function goLogin(): void {
+  uni.navigateTo({
+    url: `/pages/login/login?redirect=${encodeURIComponent('/pages/index/index')}`,
+  })
+}
+
 function confirmLogout(): void {
   accountMenuOpen.value = false
   uni.showModal({
-    title: '退出登录',
     content: '退出后需要重新登录才能查看订单，确定退出吗？',
     confirmText: '退出登录',
     cancelText: '取消',
@@ -84,6 +89,9 @@ function retry(): void {
           <view v-if="accountMenuOpen" class="account-menu" @tap.stop>
             <view class="account-menu-item" @tap="confirmLogout">退出登录</view>
           </view>
+        </view>
+        <view v-else-if="!auth.isLoggedIn" class="account-chip" @tap="goLogin">
+          <text class="account-login">点击登录</text>
         </view>
       </view>
 
@@ -215,6 +223,12 @@ function retry(): void {
 }
 
 .account-tail {
+  color: #6f4e37;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.account-login {
   color: #6f4e37;
   font-size: 22rpx;
   font-weight: 600;

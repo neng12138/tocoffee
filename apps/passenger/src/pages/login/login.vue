@@ -77,6 +77,12 @@ function goNext(): void {
     redirect.value && redirect.value.startsWith('/pages/') && !redirect.value.startsWith('/pages/login/')
       ? redirect.value
       : '/pages/index/index'
+
+  if (target === '/pages/index/index') {
+    uni.reLaunch({ url: target })
+    return
+  }
+
   uni.redirectTo({
     url: target,
     fail: () => {
